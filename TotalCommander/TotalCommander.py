@@ -285,7 +285,7 @@ class MyApp(QDialog):
             QMessageBox.information(self, "Succes", f"Elementul '{self.clipboard_path.name}' a fost copiat.")
             
         except Exception as e:
-            QMessageBox.critical(self, "Eroare", f"Copierea caii a esuat: {e}")   
+            QMessageBox.critical(self, "Eroare", f"Copierea caii a esuat: {e}")
 
     def CutPath(self):
         active_tree, prefix = self.getActivePanel()
@@ -305,7 +305,7 @@ class MyApp(QDialog):
             self.clipboard_path = Path(path_str)
             self.clipboard_operation = 'Cut'
             
-            # Copiaza calea in clipboard-ul de sistem (optional, pentru compatibilitate)
+            # Copiaza calea în clipboard-ul de sistem (optional, pentru compatibilitate)
             clipboard_sys = QApplication.clipboard()
             clipboard_sys.setText(path_str)
             
@@ -376,13 +376,7 @@ class MyApp(QDialog):
                                  f"Acces interzis pentru {operation} in directorul: {destination_dir}")
         except Exception as e:
             QMessageBox.critical(self, "Eroare", f"Lipirea a esuat. Eroare: {e}")
-    def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.XButton1:
-            self.GoBack()
-        elif event.button() == Qt.MouseButton.XButton2:
-            self.GoNext()
-        else:
-            super().mousePressEvent(event)
+
     def ShowProperties(self):
         active_tree, prefix = self.getActivePanel()
         selected_item = active_tree.currentItem()
