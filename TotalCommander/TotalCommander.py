@@ -21,7 +21,7 @@ def list_directory_contents(directory_path: str) -> list[dict]:
             contents.append({
                 'name': entry.name,
                 'is_dir': entry.is_dir(),
-                'size': stats.st_size if entry.is_file() else 0,
+                'size': int(stats.st_size) if entry.is_file() else 0,
                 'is_file': entry.is_file(),
                 'ext': entry.suffix,
                 'path': str(entry),
@@ -51,6 +51,7 @@ class MyApp(QDialog):
     currentPathLeft: Path
     currentPathRight: Path
     panel_activated: str
+    clipboard: Path
 
     def __init__(self):
         super().__init__()
@@ -66,11 +67,18 @@ class MyApp(QDialog):
         
         self.panel_activated = 'Left' 
         self.ConfigWidgets()
+
+        self.clipboard_path: Path | None = None
+        self.clipboard_operation: str = '' # 'Copy' sau 'Cut'
+
     def ConfigWidgets(self): 
 
         self.LeftTree.installEventFilter(self)
         self.RightTree.installEventFilter(self)
         self.lineEdit.installEventFilter(self)
+
+        self.LeftTree.viewport().installEventFilter(self)
+        self.RightTree.viewport().installEventFilter(self)
 
         self.SortColumns()
 
@@ -108,6 +116,7 @@ class MyApp(QDialog):
 
         self.setupSizeTree()
     def eventFilter(self, source, event):
+        # Detectare focus (codul tau existent)
         if event.type() == QtCore.QEvent.Type.FocusIn:  
             if source == self.LeftTree:
                 self.panel_activated = 'Left'
@@ -115,10 +124,25 @@ class MyApp(QDialog):
             elif source == self.RightTree:
                 self.panel_activated = 'Right'
                 self.style_active_panel(self.RightTree)
-                
-            elif source == self.lineEdit:
-                pass
-        return super().eventFilter(source, event)      
+
+        if event.type() == QtCore.QEvent.Type.MouseButtonPress:
+            if source in [self.LeftTree, self.LeftTree.viewport(), self.RightTree, self.RightTree.viewport()]:
+            
+                if source in [self.LeftTree, self.LeftTree.viewport()]:
+                    self.panel_activated = 'Left'
+                    self.style_active_panel(self.LeftTree)
+                else:
+                    self.panel_activated = 'Right'
+                    self.style_active_panel(self.RightTree)
+
+                if event.button() == Qt.MouseButton.XButton1:
+                    self.GoBack()
+                    return True 
+                elif event.button() == Qt.MouseButton.XButton2:
+                    self.GoNext()
+                    return True
+
+        return super().eventFilter(source, event)
     def style_active_panel(self, active_tree: QTreeWidget):
         inactive_tree = self.RightTree if active_tree == self.LeftTree else self.LeftTree
         
@@ -149,8 +173,14 @@ class MyApp(QDialog):
         properties_action = menu.addAction("Proprietati")
         properties_action.triggered.connect(self.ShowProperties)
         
-        copy_path_action = menu.addAction("Copiere Path")
-        copy_path_action.triggered.connect(self.CopyPath)
+        cut_action = menu.addAction("Taiere")
+        cut_action.triggered.connect(self.CutPath)
+        
+        copy_action = menu.addAction("Copiere")
+        copy_action.triggered.connect(self.CopyPath)
+
+        paste_action = menu.addAction("Lipire")
+        paste_action.triggered.connect(self.PastePath)
         
         menu.exec(active_tree.mapToGlobal(position))
     def NavigateToPath(self):
@@ -229,6 +259,7 @@ class MyApp(QDialog):
                 self.setupTree(active_tree, current_dir)
             except Exception as e:
                 QMessageBox.critical(self, "Eroare", f"Redenumirea a esuat: {e}")
+
     def CopyPath(self):
         active_tree, prefix = self.getActivePanel()
         selected_item = active_tree.currentItem()
@@ -244,13 +275,114 @@ class MyApp(QDialog):
             return
 
         try:
-            clipboard = QApplication.clipboard()
-            clipboard.setText(path_str)
+            self.clipboard_path = Path(path_str)
+            self.clipboard_operation = 'Copy'
             
-            QMessageBox.information(self, "Succes", f"Calea a fost copiata in clipboard.")
+            # Copiaza calea in clipboard-ul de sistem (optional, pentru compatibilitate)
+            clipboard_sys = QApplication.clipboard()
+            clipboard_sys.setText(path_str)
+            
+            QMessageBox.information(self, "Succes", f"Elementul '{self.clipboard_path.name}' a fost copiat.")
             
         except Exception as e:
-            QMessageBox.critical(self, "Eroare", f"Copierea caii a esuat: {e}")
+            QMessageBox.critical(self, "Eroare", f"Copierea caii a esuat: {e}")   
+
+    def CutPath(self):
+        active_tree, prefix = self.getActivePanel()
+        selected_item = active_tree.currentItem()
+
+        if selected_item is None or selected_item.text(0) == "..":
+            QMessageBox.warning(self, "Atentie", "Va rugam selectati un element valid.")
+            return
+
+        path_str = selected_item.data(0, QtCore.Qt.ItemDataRole.UserRole)
+        
+        if not path_str:
+            QMessageBox.warning(self, "Eroare", "Calea elementului nu a putut fi citita.")
+            return
+
+        try:
+            self.clipboard_path = Path(path_str)
+            self.clipboard_operation = 'Cut'
+            
+            # Copiaza calea in clipboard-ul de sistem (optional, pentru compatibilitate)
+            clipboard_sys = QApplication.clipboard()
+            clipboard_sys.setText(path_str)
+            
+            QMessageBox.information(self, "Succes", f"Elementul '{self.clipboard_path.name}' a fost taiat.")
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Eroare", f"Taierea caii a esuat: {e}")
+
+    def PastePath(self):
+        source_path = self.clipboard_path
+        operation = self.clipboard_operation
+
+        active_tree, prefix = self.getActivePanel()
+        current_path_attr = 'currentPath' + prefix
+        destination_dir = getattr(self, current_path_attr)
+        
+        # Verifica daca exista ceva in clipboard
+        if source_path is None:
+            QMessageBox.warning(self, "Atentie", "Nu este niciun element copiat/taiat.")
+            return
+        
+        # Nu poti muta/copia un director in el insusi sau in subdirectorul sau
+        if destination_dir.is_relative_to(source_path):
+             QMessageBox.critical(self, "Eroare", "Directorul destinatie nu poate fi sursa sau un subdirector al sursei.")
+             return
+             
+        # Construieste calea destinatie completa
+        destination_path = destination_dir / source_path.name
+        
+        # Verifica daca elementul exista deja la destinatie (pentru a evita suprascrierea accidentala)
+        if destination_path.exists():
+            reply = QMessageBox.question(self, 'Confirmare Suprascriere',
+                                         f"Elementul '{source_path.name}' exista deja. Doriti sa il suprascrieti?",
+                                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            if reply == QMessageBox.StandardButton.No:
+                return
+
+        try:
+            if operation == 'Copy':
+                # Folosim copy2 pentru a pastra metadatele fisierului
+                if source_path.is_dir():
+                    shutil.copytree(source_path, destination_path, dirs_exist_ok=True)
+                else:
+                    shutil.copy2(source_path, destination_path)
+                message = f"Elementul '{source_path.name}' a fost copiat in:\n{destination_dir}"
+                
+            elif operation == 'Cut':
+                # Folosim move (redenumire/mutare)
+                shutil.move(str(source_path), str(destination_path))
+                message = f"Elementul '{source_path.name}' a fost mutat in:\n{destination_dir}"
+                
+                # Dupa mutare, sterge starea clipboard-ului
+                self.clipboard_path = None
+                self.clipboard_operation = ''
+                
+            else:
+                QMessageBox.critical(self, "Eroare", "Operatie clipboard necunoscuta.")
+                return
+
+            QMessageBox.information(self, "Succes", message)
+            
+            # Reimprospateaza ambele panouri dupa o operatie reusita (sursa si destinatia)
+            self.setupTree(self.LeftTree, self.currentPathLeft)
+            self.setupTree(self.RightTree, self.currentPathRight)
+            
+        except PermissionError:
+            QMessageBox.critical(self, "Eroare de Permisiune", 
+                                 f"Acces interzis pentru {operation} in directorul: {destination_dir}")
+        except Exception as e:
+            QMessageBox.critical(self, "Eroare", f"Lipirea a esuat. Eroare: {e}")
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.XButton1:
+            self.GoBack()
+        elif event.button() == Qt.MouseButton.XButton2:
+            self.GoNext()
+        else:
+            super().mousePressEvent(event)
     def ShowProperties(self):
         active_tree, prefix = self.getActivePanel()
         selected_item = active_tree.currentItem()
@@ -278,6 +410,14 @@ class MyApp(QDialog):
             
         except Exception as e:
             QMessageBox.critical(self, "Eroare", f"Nu s-au putut obtine proprietatile: {e}")
+    def MouseButtonPress(self, event):
+        if event.button() == Qt.MouseButton.XButton1:
+            self.GoBack()
+        elif event.button() == Qt.MouseButton.XButton2:
+            self.GoNext()
+        else:
+            super().mousePressEvent(event)
+           
     def OpenItem(self, item, column):
         sender_widget = self.sender()
         selected_item = item
