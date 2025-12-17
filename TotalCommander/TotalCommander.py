@@ -2,12 +2,17 @@ import sys
 from PyQt6.QtWidgets import QApplication, QInputDialog, QPushButton, QWidget, QTreeWidgetItem, QTreeWidget, QDialog, QMessageBox, QMenu, QLineEdit
 from PyQt6.uic import loadUi
 from pathlib import Path
+from PyQt6.QtWidgets import QTreeView, QVBoxLayout, QHeaderView
+from PyQt6.QtCore import QDir
+from PyQt6.QtGui import QFileSystemModel
 import os
 import shutil
 import datetime
 from PyQt6.QtCore import Qt
 import PyQt6.QtCore as QtCore
 import webbrowser
+
+from PyQt6.uic.uiparser import QtGui
 
 def list_directory_contents(directory_path: str) -> list[dict]:
     path = Path(directory_path)
@@ -33,8 +38,12 @@ def list_directory_contents(directory_path: str) -> list[dict]:
 
 class MyApp(QDialog):
 
+    # obiecte de tipul respectiv
+
     LeftTree: QTreeWidget
     RightTree: QTreeWidget
+    PanelTree : QTreeWidget
+
     AddButton: QPushButton
     BackButton: QPushButton
     NextButton: QPushButton
@@ -56,18 +65,25 @@ class MyApp(QDialog):
     def __init__(self):
         super().__init__()
         loadUi('Display.ui', self)
+        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowType.WindowMinimizeButtonHint | QtCore.Qt.WindowType.WindowMaximizeButtonHint) # creaza butonul de full screen
 
+        # vectori care memoreaza adresa curenta si anterioara ptr fiecare din arbori
         self.PathHistoryBackLeft = []
         self.PathHistoryBackRight = []
         self.PathHistoryNextLeft = []
         self.PathHistoryNextRight = []
 
+        #discul afisad (default)
         self.currentPathLeft = Path("C:/")
         self.currentPathRight = Path("D:/") if Path("D:/").exists() else Path("C:/")
         
+        #pornim cu panelul stang default
         self.panel_activated = 'Left' 
+
+        #configurare widgeturi
         self.ConfigWidgets()
 
+        #path-ul curent e none (default)
         self.clipboard_path: Path | None = None
         self.clipboard_operation: str = '' # 'Copy' sau 'Cut'
 
@@ -114,48 +130,59 @@ class MyApp(QDialog):
         
         self.lineEdit.setText(str(self.currentPathLeft))
 
-        self.setupSizeTree()
+        self.setupPanel()
     def eventFilter(self, source, event):
-        # Detectare focus (codul tau existent)
-        if event.type() == QtCore.QEvent.Type.FocusIn:  
+        # Detectare focus (codul tau existent) 
+        if event.type() == QtCore.QEvent.Type.FocusIn: #pentru tree uri
             if source == self.LeftTree:
                 self.panel_activated = 'Left'
                 self.style_active_panel(self.LeftTree)
             elif source == self.RightTree:
                 self.panel_activated = 'Right'
                 self.style_active_panel(self.RightTree)
+            elif source == self.PanelTree:
+                self.panel_activated = 'Panel'
+                self.style_active_panel(self.PanelTree)
 
         if event.type() == QtCore.QEvent.Type.MouseButtonPress:
-            if source in [self.LeftTree, self.LeftTree.viewport(), self.RightTree, self.RightTree.viewport()]:
+            if source in [self.LeftTree, self.LeftTree.viewport(), self.RightTree, self.RightTree.viewport(), self.PanelTree, self.PanelTree.viewport]:
             
                 if source in [self.LeftTree, self.LeftTree.viewport()]:
                     self.panel_activated = 'Left'
                     self.style_active_panel(self.LeftTree)
-                else:
+                if source in [self.RightTree, self.RightTree.viewport()]:
                     self.panel_activated = 'Right'
                     self.style_active_panel(self.RightTree)
+                if source in [self.PanelTree, self.PanelTree.viewport()]:
+                    self.panel_activated = 'Panel'
+                    self.style_active_panel(self.RightTree)
 
+                # pentru mouse
                 if event.button() == Qt.MouseButton.XButton1:
                     self.GoBack()
                     return True 
                 elif event.button() == Qt.MouseButton.XButton2:
                     self.GoNext()
                     return True
-
-        return super().eventFilter(source, event)
+        return super().eventFilter(source, event) # se termina de verificat eventul, si se intra in functia lui pentru a continua exectutia
+    
     def style_active_panel(self, active_tree: QTreeWidget):
         inactive_tree = self.RightTree if active_tree == self.LeftTree else self.LeftTree
         
         active_style = "QTreeWidget {border: 2px solid #0078D7;}"
         inactive_style = "QTreeWidget {border: 1px solid gray;}"
-
         active_tree.setStyleSheet(active_style)
         inactive_tree.setStyleSheet(inactive_style)
+
     def getActivePanel(self):
         prefix = self.panel_activated
         active_tree = self.LeftTree if prefix == 'Left' else self.RightTree
         return active_tree, prefix
+
     def showContextMenu(self, position):
+
+        #meniul cand dau click dreapta
+
         active_tree, prefix = self.getActivePanel()
         selected_item = active_tree.currentItem()
 
@@ -183,6 +210,7 @@ class MyApp(QDialog):
         paste_action.triggered.connect(self.PastePath)
         
         menu.exec(active_tree.mapToGlobal(position))
+
     def NavigateToPath(self):
         address = self.lineEdit.text()
         if not address:
@@ -286,7 +314,6 @@ class MyApp(QDialog):
             
         except Exception as e:
             QMessageBox.critical(self, "Eroare", f"Copierea caii a esuat: {e}")
-
     def CutPath(self):
         active_tree, prefix = self.getActivePanel()
         selected_item = active_tree.currentItem()
@@ -305,7 +332,7 @@ class MyApp(QDialog):
             self.clipboard_path = Path(path_str)
             self.clipboard_operation = 'Cut'
             
-            # Copiaza calea în clipboard-ul de sistem (optional, pentru compatibilitate)
+            # Copiaza calea Ã®n clipboard-ul de sistem (optional, pentru compatibilitate)
             clipboard_sys = QApplication.clipboard()
             clipboard_sys.setText(path_str)
             
@@ -313,7 +340,6 @@ class MyApp(QDialog):
             
         except Exception as e:
             QMessageBox.critical(self, "Eroare", f"Taierea caii a esuat: {e}")
-
     def PastePath(self):
         source_path = self.clipboard_path
         operation = self.clipboard_operation
@@ -560,8 +586,6 @@ class MyApp(QDialog):
             except Exception as e:
                 QMessageBox.critical(self, "Eroare de I/O", 
                                      f"Stergerea a esuat. Eroare: {e}")
-    def setupSizeTree(self):
-        print("setup sizes...")  
     def SortColumns(self):
         self.LeftTree.setSortingEnabled(True)
         self.RightTree.setSortingEnabled(True)
@@ -590,6 +614,32 @@ class MyApp(QDialog):
 
             tree_item = QTreeWidgetItem(tree_widget, [name_str, size_str, ext, date_mod])
             tree_item.setData(0, QtCore.Qt.ItemDataRole.UserRole, item['path']) 
+    def setupPanel(self):
+        self.model = QFileSystemModel()
+        self.model.setRootPath("") 
+        self.model.setFilter(QDir.Filter.AllEntries | QDir.Filter.NoDotAndDotDot | QDir.Filter.Hidden | QDir.Filter.System)
+
+        self.PanelTree.setModel(self.model)
+
+        for i in range(1, self.model.columnCount()):
+            self.PanelTree.setColumnHidden(i, True)
+    
+        self.PanelTree.header().hide()
+        self.PanelTree.setAnimated(True)
+        self.PanelTree.setIndentation(20)
+
+        root_index = self.model.index("")
+        self.PanelTree.expand(root_index)
+
+        self.PanelTree.clicked.connect(self.PanelClick)
+
+    def PanelClick(self, index):
+        path = self.model.filePath(index)
+        if os.path.isdir(path):
+            active_tree, prefix = self.getActivePanel()
+            setattr(self, f'currentPath{prefix}', Path(path))
+            self.setupTree(active_tree, Path(path))
+            self.lineEdit.setText(path)
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     myapp = MyApp()
