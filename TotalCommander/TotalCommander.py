@@ -112,7 +112,6 @@ class MyApp(QDialog):
             if source == self.LeftTree:
                 self.panel_activated = 'Left'
                 self.style_active_panel(self.LeftTree)
-                
             elif source == self.RightTree:
                 self.panel_activated = 'Right'
                 self.style_active_panel(self.RightTree)
