@@ -8,6 +8,7 @@ from PyQt6.QtCore import QDir
 from PyQt6.QtGui import QFileSystemModel
 import os
 import shutil
+import zipfile
 import datetime
 from PyQt6.QtCore import Qt
 import PyQt6.QtCore as QtCore
@@ -27,7 +28,7 @@ def list_directory_contents(directory_path: str) -> list[dict]:
             contents.append({
                 'name': entry.name,
                 'is_dir': entry.is_dir(),
-                'size': int(stats.st_size) if entry.is_file() else 0,
+                'size': int(stats.st_size) if entry.is_file() else int(0),
                 'is_file': entry.is_file(),
                 'ext': entry.suffix,
                 'path': str(entry),
@@ -210,6 +211,9 @@ class MyApp(QDialog):
         paste_action = menu.addAction("Lipire")
         paste_action.triggered.connect(self.PastePath)
         
+        zio_action = menu.addAction("Adauga in folder zip")
+        zio_action.triggered.connect(self.ZipPath)
+
         menu.exec(active_tree.mapToGlobal(position))
 
     def NavigateToPath(self):
@@ -403,6 +407,41 @@ class MyApp(QDialog):
                                  f"Acces interzis pentru {operation} in directorul: {destination_dir}")
         except Exception as e:
             QMessageBox.critical(self, "Eroare", f"Lipirea a esuat. Eroare: {e}")
+
+    def ZipPath(self):
+        active_tree, prefix = self.getActivePanel()
+        selected_item = active_tree.currentItem()
+
+        if not selected_item:
+            QMessageBox.warning(self, "Atentie", "Selectati un element pentru arhivare.")
+            return
+
+        path_str = selected_item.data(0, QtCore.Qt.ItemDataRole.UserRole)
+        source_path = Path(path_str)
+    
+        # Numele viitoarei arhive (ex: document.txt -> document.zip)
+        zip_name = source_path.parent / (source_path.stem + ".zip")
+
+        try:
+            if source_path.is_dir():
+                # Pentru foldere, shutil.make_archive este cel mai simplu
+                # Acesta creeaza arhiva si returneaza calea
+                shutil.make_archive(str(source_path), 'zip', source_path.parent, source_path.name)
+            else:
+                # Pentru un singur fisier, folosim zipfile
+                with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                    zipf.write(source_path, source_path.name)
+        
+            print(f"Arhiva creata: {zip_name}")
+        
+            # Refresh la panelul curent pentru a vedea noul fisier .zip
+            current_path = getattr(self, f'currentPath{prefix}')
+            self.setupTree(active_tree, current_path)
+        
+            QMessageBox.information(self, "Succes", f"Arhiva a fost creata:\n{zip_name.name}")
+
+        except Exception as e:
+            QMessageBox.critical(self, "Eroare", f"Arhivarea a esuat: {e}")
 
     def ShowProperties(self):
         active_tree, prefix = self.getActivePanel()
@@ -625,7 +664,7 @@ class MyApp(QDialog):
     def setupPanel(self):
         self.model = QFileSystemModel()
         self.model.setRootPath("") 
-        self.model.setFilter(QDir.Filter.AllEntries | QDir.Filter.NoDotAndDotDot | QDir.Filter.Hidden | QDir.Filter.System)
+        self.model.setFilter(QDir.Filter.Dirs | QDir.Filter.NoDotAndDotDot | QDir.Filter.Hidden | QDir.Filter.System)
 
         self.PanelTree.setModel(self.model)
 
