@@ -1,7 +1,8 @@
 import sys
-from PyQt6.QtWidgets import QApplication, QInputDialog, QPushButton, QWidget, QTreeWidgetItem, QTreeWidget, QDialog, QMessageBox, QMenu, QLineEdit
+from PyQt6.QtWidgets import QApplication, QInputDialog, QPushButton, QFileIconProvider, QWidget, QTreeWidgetItem, QTreeWidget, QDialog, QMessageBox, QMenu, QLineEdit
 from PyQt6.uic import loadUi
 from pathlib import Path
+from PyQt6.QtCore import QFileInfo
 from PyQt6.QtWidgets import QTreeView, QVBoxLayout, QHeaderView
 from PyQt6.QtCore import QDir
 from PyQt6.QtGui import QFileSystemModel
@@ -596,9 +597,12 @@ class MyApp(QDialog):
         tree_widget.clear()
         parent_path = path.parent.resolve()
 
+        icon_provider = QFileIconProvider()
+
         if parent_path != path:
             item_parent = QTreeWidgetItem(tree_widget, ["..", "", "DIR", ""])
             item_parent.setData(0, QtCore.Qt.ItemDataRole.UserRole, str(parent_path))
+            item_parent.setIcon(0, icon_provider.icon(QFileIconProvider.IconType.Folder))
 
         try:
             contents = list_directory_contents(str(path))
@@ -614,6 +618,10 @@ class MyApp(QDialog):
 
             tree_item = QTreeWidgetItem(tree_widget, [name_str, size_str, ext, date_mod])
             tree_item.setData(0, QtCore.Qt.ItemDataRole.UserRole, item['path']) 
+
+            file_info = QFileInfo(item['path'])
+            icon = icon_provider.icon(file_info)
+            tree_item.setIcon(0, icon)
     def setupPanel(self):
         self.model = QFileSystemModel()
         self.model.setRootPath("") 
