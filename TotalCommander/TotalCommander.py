@@ -5,7 +5,7 @@ from pathlib import Path
 from PyQt6.QtCore import QFileInfo
 from PyQt6.QtWidgets import QTreeView, QVBoxLayout, QHeaderView
 from PyQt6.QtCore import QDir
-from PyQt6.QtGui import QFileSystemModel
+from PyQt6.QtGui import QFileSystemModel, QKeySequence, QShortcut
 import os
 import shutil
 import zipfile
@@ -89,6 +89,40 @@ class MyApp(QDialog):
         self.clipboard_path: Path | None = None
         self.clipboard_operation: str = '' # 'Copy' sau 'Cut'
 
+        #Shortcuturi (F3, F4, del samd)
+        # F3 - Proprietati
+        QShortcut(QKeySequence("F3"), self).activated.connect(self.ShowProperties)
+    
+        # F4 - Redenumire
+        QShortcut(QKeySequence("F4"), self).activated.connect(self.RenameSelected)
+    
+        # F5 - Arhivare (Zip)
+        QShortcut(QKeySequence("F5"), self).activated.connect(self.ZipPath)
+    
+        # F6 - Refresh (Reincarca directoarele)
+        QShortcut(QKeySequence("F6"), self).activated.connect(self.RefreshPanels)
+
+        # F7 - Folder Nou
+        QShortcut(QKeySequence("F7"), self).activated.connect(self.AddFile)
+
+        # Delete - Stergere
+        QShortcut(QKeySequence(Qt.Key.Key_Delete), self).activated.connect(self.DelFile)
+
+        # Ctrl + C pentru Copiere
+        QShortcut(QKeySequence.StandardKey.Copy, self).activated.connect(self.CopyPath)
+
+        # Ctrl + V pentru Lipire
+        QShortcut(QKeySequence.StandardKey.Paste, self).activated.connect(self.PastePath)
+
+        # Ctrl + X pentru Tăiere (Cut)
+        QShortcut(QKeySequence.StandardKey.Cut, self).activated.connect(self.CutPath)
+
+    def RefreshPanels(self):
+        """Reincarca listele de fisiere pentru ambele panouri."""
+        self.setupTree(self.LeftTree, self.currentPathLeft)
+        self.setupTree(self.RightTree, self.currentPathRight)
+        print("Panouri actualizate.")
+
     def ConfigWidgets(self): 
 
         self.LeftTree.installEventFilter(self)
@@ -112,8 +146,7 @@ class MyApp(QDialog):
         self.LeftTree.setHeaderLabels(["Name", "Size", "Ext", "DateMod"])
         self.RightTree.setHeaderLabels(["Name", "Size", "Ext", "DateMod"])
 
-        self.setupTree(self.LeftTree, self.currentPathLeft)
-        self.setupTree(self.RightTree, self.currentPathRight)
+        self.RefreshPanels()
 
         self.AddButton.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
         self.BackButton.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
