@@ -1,5 +1,6 @@
 from faulthandler import is_enabled
 import sys
+from tkinter import Button
 from PyQt6.QtWidgets import QApplication, QInputDialog, QPushButton, QFileIconProvider, QWidget, QTreeWidgetItem, QTreeWidget, QDialog, QMessageBox, QMenu, QLineEdit
 from PyQt6.uic import loadUi
 from pathlib import Path
@@ -69,8 +70,12 @@ class MyApp(QDialog):
     def __init__(self):
         super().__init__()
         loadUi('Display.ui', self)
+        self.setWindowState(QtCore.Qt.WindowState.WindowMaximized)
         self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowType.WindowMinimizeButtonHint | QtCore.Qt.WindowType.WindowMaximizeButtonHint) # creaza butonul de full screen
-        
+        self.buttons = self.findChildren(QPushButton)
+        for btn in self.buttons:
+            btn.clicked.connect(self.shortCutButton)
+
         self.adjustSize() 
         self.update()
 
@@ -171,9 +176,27 @@ class MyApp(QDialog):
         self.lineEdit.returnPressed.connect(self.NavigateToPath)
         self.FindPathButton.clicked.connect(self.NavigateToPath)
         
-        self.lineEdit.setText(str(self.currentPathLeft))
+        self.lineEdit.setText(str(self.currentPathLeft)) 
 
         self.setupPanel()
+
+    def shortCutButton(self):
+        button = self.sender()
+
+        if not button:
+            return ;
+
+        text = button.text()
+        if 'F3 - Proprietati' in text: self.ShowProperties()
+        if 'F4 - Redenumire'in text: self.RenameSelected()
+        if 'F5 - Arhivare' in text: self.ZipPath()
+        if 'F6 - Refresh' in text: self.RefreshPanels()
+        if 'F7 - Folder Nou'in text: self.AddFile()
+        if 'Del - Stergere' in text: self.DelFile()
+        if 'CTRL + C - Copiere' in text: self.CopyPath()
+        if 'CTRL + V - Lipire' in text: self.PastePath()
+        if 'CTRL + X - Taiere' in text: self.CutPath()
+        if 'CTRL + F5 - Dezarhivare' in text: self.UnzipPath()
     def eventFilter(self, source, event):
         # Detectare focus (codul tau existent) 
         if event.type() == QtCore.QEvent.Type.FocusIn: #pentru tree uri
