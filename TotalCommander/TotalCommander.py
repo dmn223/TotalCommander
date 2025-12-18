@@ -1,3 +1,4 @@
+from faulthandler import is_enabled
 import sys
 from PyQt6.QtWidgets import QApplication, QInputDialog, QPushButton, QFileIconProvider, QWidget, QTreeWidgetItem, QTreeWidget, QDialog, QMessageBox, QMenu, QLineEdit
 from PyQt6.uic import loadUi
@@ -7,6 +8,7 @@ from PyQt6.QtWidgets import QTreeView, QVBoxLayout, QHeaderView
 from PyQt6.QtCore import QDir
 from PyQt6.QtGui import QFileSystemModel, QKeySequence, QShortcut
 import os
+import ctypes
 import shutil
 import zipfile
 import datetime
@@ -101,7 +103,10 @@ class MyApp(QDialog):
     
         # F5 - Arhivare (Zip)
         QShortcut(QKeySequence("F5"), self).activated.connect(self.ZipPath)
-    
+
+        # CTRL + F5 - Dezarhivare (UnZip)
+        QShortcut(QKeySequence("Ctrl+F5"), self).activated.connect(self.UnzipPath)
+
         # F6 - Refresh (Reincarca directoarele)
         QShortcut(QKeySequence("F6"), self).activated.connect(self.RefreshPanels)
 
@@ -250,6 +255,9 @@ class MyApp(QDialog):
         zio_action = menu.addAction("Adauga in folder zip")
         zio_action.triggered.connect(self.ZipPath)
 
+        unzip_action = menu.addAction("Extrage din folder zip")
+        unzip_action.triggered.connect(self.UnzipPath)
+        
         menu.exec(active_tree.mapToGlobal(position))
 
     def NavigateToPath(self):
@@ -443,7 +451,39 @@ class MyApp(QDialog):
                                  f"Acces interzis pentru {operation} in directorul: {destination_dir}")
         except Exception as e:
             QMessageBox.critical(self, "Eroare", f"Lipirea a esuat. Eroare: {e}")
+    def UnzipPath(self):
+        active_tree, prefix = self.getActivePanel()
+        selected_item = active_tree.currentItem()
 
+        if not selected_item:
+            QMessageBox.warning(self, "Atentie", "Selectati un element pentru arhivare.")
+            return
+
+        path_str = selected_item.data(0, QtCore.Qt.ItemDataRole.UserRole)
+        source_path = Path(path_str)
+
+        # Verificam ca este un zip
+        if source_path.suffix.lower() != '.zip':
+            QMessageBox.warning(self, "Atentie", "Elementul selectat nu este o arhiva ZIP.")
+            return
+    
+        # Numele viitoarei arhive (ex: document.zip -> document)
+        dest_dir = source_path.parent / (source_path.stem)
+
+        try:
+            dest_dir.mkdir(exist_ok=True)
+
+            with zipfile.ZipFile(source_path, 'r') as zip_ref:
+                # Extragem tot conținutul
+                zip_ref.extractall(dest_dir)
+        
+            # Refresh panou pentru a vedea noul folder extras
+            self.setupTree(active_tree, getattr(self, f'currentPath{prefix}'))
+        
+            QMessageBox.information(self, "Succes", f"Arhiva a fost extrasa in:\n{dest_dir.name}")
+
+        except Exception as e:
+            QMessageBox.critical(self, "Eroare", f"Extractia a esuat: {e}")
     def ZipPath(self):
         active_tree, prefix = self.getActivePanel()
         selected_item = active_tree.currentItem()
@@ -736,3 +776,4 @@ if __name__ == '__main__':
     myapp = MyApp()
     myapp.show()
     sys.exit(app.exec())
+    

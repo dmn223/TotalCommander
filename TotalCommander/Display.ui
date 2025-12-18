@@ -217,6 +217,11 @@
           <string>CTRL + X - Taiere</string>
          </property>
         </widget>
+        <widget class="QPushButton" name="pushButton_10">
+         <property name="text">
+          <string>CTRL + F5 - Dezarhivare</string>
+         </property>
+        </widget>
        </widget>
       </item>
      </layout>
