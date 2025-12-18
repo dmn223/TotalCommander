@@ -68,6 +68,9 @@ class MyApp(QDialog):
         super().__init__()
         loadUi('Display.ui', self)
         self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowType.WindowMinimizeButtonHint | QtCore.Qt.WindowType.WindowMaximizeButtonHint) # creaza butonul de full screen
+        
+        self.adjustSize() 
+        self.update()
 
         # vectori care memoreaza adresa curenta si anterioara ptr fiecare din arbori
         self.PathHistoryBackLeft = []
@@ -497,7 +500,7 @@ class MyApp(QDialog):
                        f"Cale completa: {path_str}\n"
                        f"Marime (octeti): {size_bytes:,}\n"
                        f"Creat la: {creation_time}\n"
-                       f"Ultima modificare: {selected_item.text(3)}")
+                       f"Ultima modificare: {selected_item.text(3)}")                       
 
             QMessageBox.information(self, f"Proprietati: {name}", details)
             
@@ -712,6 +715,14 @@ class MyApp(QDialog):
         self.PanelTree.expand(root_index)
 
         self.PanelTree.clicked.connect(self.PanelClick)
+        # Obținem obiectul header al TreeView-ului
+        header = self.PanelTree.header()
+
+        # 1. Permitem coloanelor să iasă din cadrul vizibil (activează scroll-ul)
+        header.setStretchLastSection(False)
+
+        # 2. Setăm prima coloană (cea cu numele) să se auto-dimensioneze
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
 
     def PanelClick(self, index):
         path = self.model.filePath(index)

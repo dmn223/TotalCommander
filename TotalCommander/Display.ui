@@ -88,11 +88,45 @@
       <enum>QFrame::Raised</enum>
      </property>
      <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="1,2,2">
+      <property name="spacing">
+       <number>1</number>
+      </property>
+      <property name="leftMargin">
+       <number>1</number>
+      </property>
+      <property name="topMargin">
+       <number>1</number>
+      </property>
+      <property name="rightMargin">
+       <number>1</number>
+      </property>
+      <property name="bottomMargin">
+       <number>1</number>
+      </property>
       <item>
-       <widget class="QTreeView" name="PanelTree"/>
+       <widget class="QTreeView" name="PanelTree">
+        <property name="verticalScrollBarPolicy">
+         <enum>Qt::ScrollBarAlwaysOn</enum>
+        </property>
+        <property name="horizontalScrollBarPolicy">
+         <enum>Qt::ScrollBarAlwaysOn</enum>
+        </property>
+        <property name="autoScroll">
+         <bool>false</bool>
+        </property>
+        <property name="wordWrap">
+         <bool>false</bool>
+        </property>
+       </widget>
       </item>
       <item>
        <widget class="QTreeWidget" name="LeftTree">
+        <property name="animated">
+         <bool>false</bool>
+        </property>
+        <attribute name="headerStretchLastSection">
+         <bool>false</bool>
+        </attribute>
         <column>
          <property name="text">
           <string notr="true">1</string>
@@ -140,7 +174,7 @@
         </property>
         <widget class="QPushButton" name="pushButton">
          <property name="text">
-          <string>F3 - Proprietaiti</string>
+          <string>F3 - Proprietati</string>
          </property>
         </widget>
         <widget class="QPushButton" name="pushButton_2">
@@ -180,7 +214,7 @@
         </widget>
         <widget class="QPushButton" name="pushButton_9">
          <property name="text">
-          <string>CTRL + X - Lipire</string>
+          <string>CTRL + X - Taiere</string>
          </property>
         </widget>
        </widget>
