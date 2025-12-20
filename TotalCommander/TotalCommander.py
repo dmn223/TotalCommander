@@ -1,7 +1,7 @@
 from faulthandler import is_enabled
 import sys
 from tkinter import Button
-from PyQt6.QtWidgets import QApplication, QInputDialog, QPushButton, QFileIconProvider, QWidget, QTreeWidgetItem, QTreeWidget, QDialog, QMessageBox, QMenu, QLineEdit
+from PyQt6.QtWidgets import QApplication, QInputDialog, QLabel, QPushButton, QSpinBox, QFileIconProvider, QWidget, QTreeWidgetItem, QTreeWidget, QDialog, QMessageBox, QMenu, QLineEdit, QFontDialog
 from PyQt6.uic import loadUi
 from pathlib import Path
 from PyQt6.QtCore import QFileInfo
@@ -41,6 +41,45 @@ def list_directory_contents(directory_path: str) -> list[dict]:
             continue
     return contents
 
+class SettingsMenu(QDialog):
+    def __init__(self, parent_window):
+        super().__init__(parent_window)
+        self.parent_window = parent_window
+        self.setWindowTitle("Setări Font")
+        self.setFixedSize(300, 200)
+        
+        layout = QVBoxLayout()
+
+        self.label = QLabel("Marime Font:")
+        layout.addWidget(self.label)
+        
+        self.fontSizeSpinBox = QSpinBox()
+        self.fontSizeSpinBox.setRange(8, 72)
+        current_size = self.parent_window.font().pointSize()
+        self.fontSizeSpinBox.setValue(current_size)
+        layout.addWidget(self.fontSizeSpinBox)
+
+        self.fontBtn = QPushButton("Schimba Familia Fontului")
+        self.fontBtn.clicked.connect(self.chooseFont)
+        layout.addWidget(self.fontBtn)
+
+        self.fontSizeSpinBox.valueChanged.connect(self.applySettings)
+        
+        self.setLayout(layout)
+
+    def chooseFont(self):
+        font, ok = QFontDialog.getFont(self.parent_window.font(), self)
+        if ok:
+            self.parent_window.setFont(font)
+            self.fontSizeSpinBox.setValue(font.pointSize())
+
+    def applySettings(self):
+        new_size = self.fontSizeSpinBox.value()
+        current_font = self.parent_window.font()
+        current_font.setPointSize(new_size)
+        
+        self.parent_window.setFont(current_font)
+        self.parent_window.update()
 class MyApp(QDialog):
 
     # obiecte de tipul respectiv
@@ -130,6 +169,38 @@ class MyApp(QDialog):
         # Ctrl + X pentru Tăiere (Cut)
         QShortcut(QKeySequence.StandardKey.Cut, self).activated.connect(self.CutPath)
 
+        # Săgeată Stânga (Back)
+        QShortcut(QKeySequence(Qt.Key.Key_Left), self).activated.connect(self.GoBack)
+
+        # Săgeată Dreapta (Next)
+        QShortcut(QKeySequence(Qt.Key.Key_Right), self).activated.connect(self.GoNext)
+
+    def openSettings(self):
+        font, ok = QFontDialog.getFont(self.font(), self, "Selectează Fontul")
+    
+        if ok:
+            self.setFont(font)
+
+            self.LeftTree.setFont(font)
+            self.RightTree.setFont(font)
+            self.PanelTree.setFont(font)
+
+            self.LeftTree.header().setFont(font)
+            self.RightTree.header().setFont(font)
+            self.PanelTree.header().setFont(font)
+    
+            for btn in self.buttons:
+                btn.setFont(font)
+
+            self.label1.setFont(font)
+            self.lineEdit.setFont(font)
+
+            for i in range(self.LeftTree.columnCount()):
+                self.LeftTree.resizeColumnToContents(i)
+                self.RightTree.resizeColumnToContents(i)
+
+            print("Toate elementele de tip Tree au fost actualizate.")
+
     def RefreshPanels(self):
         """Reincarca listele de fisiere pentru ambele panouri."""
         self.setupTree(self.LeftTree, self.currentPathLeft)
@@ -161,15 +232,11 @@ class MyApp(QDialog):
 
         self.RefreshPanels()
 
-        self.AddButton.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
         self.BackButton.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
         self.NextButton.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
-        self.DelButton.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
 
-        self.AddButton.clicked.connect(self.AddFile)
         self.BackButton.clicked.connect(self.GoBack)
         self.NextButton.clicked.connect(self.GoNext)
-        self.DelButton.clicked.connect(self.DelFile)
 
         self.style_active_panel(self.LeftTree)
 
@@ -197,6 +264,8 @@ class MyApp(QDialog):
         if 'CTRL + V - Lipire' in text: self.PastePath()
         if 'CTRL + X - Taiere' in text: self.CutPath()
         if 'CTRL + F5 - Dezarhivare' in text: self.UnzipPath()
+        if 'Setari' in text: self.openSettings()
+    
     def eventFilter(self, source, event):
         # Detectare focus (codul tau existent) 
         if event.type() == QtCore.QEvent.Type.FocusIn: #pentru tree uri
