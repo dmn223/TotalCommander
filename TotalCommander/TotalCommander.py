@@ -1,13 +1,14 @@
 from faulthandler import is_enabled
 import sys
 from tkinter import Button
+from PyQt6 import QtGui, QtCore, QtWidgets
 from PyQt6.QtWidgets import QApplication, QInputDialog, QLabel, QPushButton, QSpinBox, QFileIconProvider, QWidget, QTreeWidgetItem, QTreeWidget, QDialog, QMessageBox, QMenu, QLineEdit, QFontDialog
 from PyQt6.uic import loadUi
 from pathlib import Path
 from PyQt6.QtCore import QFileInfo
-from PyQt6.QtWidgets import QTreeView, QVBoxLayout, QHeaderView
+from PyQt6.QtWidgets import QTreeView, QVBoxLayout, QHeaderView, QMenuBar, QMenu
 from PyQt6.QtCore import QDir
-from PyQt6.QtGui import QFileSystemModel, QKeySequence, QShortcut
+from PyQt6.QtGui import QFileSystemModel, QKeySequence, QShortcut, QAction, QPalette, QColor
 import os
 import ctypes
 import shutil
@@ -16,8 +17,6 @@ import datetime
 from PyQt6.QtCore import Qt
 import PyQt6.QtCore as QtCore
 import webbrowser
-
-from PyQt6.uic.uiparser import QtGui
 
 def list_directory_contents(directory_path: str) -> list[dict]:
     path = Path(directory_path)
@@ -64,6 +63,11 @@ class SettingsMenu(QDialog):
         layout.addWidget(self.fontBtn)
 
         self.fontSizeSpinBox.valueChanged.connect(self.applySettings)
+
+        self.themeBtn = QPushButton("Schimba Modul (Dark/Light)")
+        self.themeBtn.clicked.connect(self.toggle_theme)
+
+        layout.addWidget(self.themeBtn)
         
         self.setLayout(layout)
 
@@ -73,6 +77,14 @@ class SettingsMenu(QDialog):
             self.parent_window.setFont(font)
             self.fontSizeSpinBox.setValue(font.pointSize())
 
+    def toggle_theme(self):
+        if self.parent_window.is_dark:
+            self.parent_window.apply_light_theme()
+            self.parent_window.is_dark = False
+        else:
+            self.parent_window.apply_dark_theme()
+            self.parent_window.is_dark = True
+
     def applySettings(self):
         new_size = self.fontSizeSpinBox.value()
         current_font = self.parent_window.font()
@@ -80,6 +92,7 @@ class SettingsMenu(QDialog):
         
         self.parent_window.setFont(current_font)
         self.parent_window.update()
+
 class MyApp(QDialog):
 
     # obiecte de tipul respectiv
@@ -109,11 +122,14 @@ class MyApp(QDialog):
     def __init__(self):
         super().__init__()
         loadUi('Display.ui', self)
+        self.all_panels = [self.LeftTree, self.RightTree, self.PanelTree]
         self.setWindowState(QtCore.Qt.WindowState.WindowMaximized)
         self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowType.WindowMinimizeButtonHint | QtCore.Qt.WindowType.WindowMaximizeButtonHint) # creaza butonul de full screen
         self.buttons = self.findChildren(QPushButton)
         for btn in self.buttons:
             btn.clicked.connect(self.shortCutButton)
+        
+        self.is_dark = False
 
         self.adjustSize() 
         self.update()
@@ -175,6 +191,8 @@ class MyApp(QDialog):
         # Săgeată Dreapta (Next)
         QShortcut(QKeySequence(Qt.Key.Key_Right), self).activated.connect(self.GoNext)
 
+        self.auto_detect_theme()
+
     def openSettings(self):
         font, ok = QFontDialog.getFont(self.font(), self, "Selectează Fontul")
     
@@ -201,6 +219,93 @@ class MyApp(QDialog):
 
             print("Toate elementele de tip Tree au fost actualizate.")
 
+    def toggle_theme(self):
+        """Switches the application between Dark and Light mode."""
+        self.is_dark = not self.is_dark
+        if self.is_dark:
+            self.apply_dark_theme()
+        else:
+            self.apply_light_theme()
+
+    def refresh_panel_styles(self):
+        """Updates every single panel in the app at once."""
+        for tree in self.all_panels:
+            is_active = False
+            if self.panel_activated == 'Left' and tree == self.LeftTree:
+                is_active = True
+            elif self.panel_activated == 'Right' and tree == self.RightTree:
+                is_active = True
+            elif self.panel_activated == 'Panel' and tree == self.PanelTree:
+                is_active = True
+
+            self.apply_single_panel_style(tree, is_active)
+
+    def apply_single_panel_style(self, tree, is_active):
+        # 1. Pick colors based on Theme
+        if self.is_dark:
+            bg = "#1E1E1E"
+            text = "white"
+            active_border = "#00A2FF"
+            inactive_border = "#444"
+        else:
+            bg = "white"
+            text = "black"
+            active_border = "#0078D7"
+            inactive_border = "#ababab"
+
+        # 2. Pick border thickness based on Focus
+        border_width = "2px" if is_active else "1px"
+        border_color = active_border if is_active else inactive_border
+
+        # 3. Apply it
+        tree.setStyleSheet(f"""
+            QTreeWidget {{
+                background-color: {bg};
+                color: {text};
+                border: {border_width} solid {border_color};
+            }}
+        """)
+
+    def SetupMenu(self):
+        # Create the Menu Bar
+        self.menuBar = QMenuBar(self)
+    
+        # 1. File Menu
+        fileMenu = self.menuBar.addMenu("&File")
+    
+        exitAction = QAction("Exit", self)
+        exitAction.setShortcut("Ctrl+Q")
+        exitAction.triggered.connect(self.close)
+        fileMenu.addAction(exitAction)
+
+        # 2. Edit Menu (Connecting your existing functions)
+        editMenu = self.menuBar.addMenu("&Edit")
+    
+        copyAction = QAction("Copy", self)
+        copyAction.setShortcut("Ctrl+C")
+        copyAction.triggered.connect(self.CopyPath)
+        editMenu.addAction(copyAction)
+    
+        pasteAction = QAction("Paste", self)
+        pasteAction.setShortcut("Ctrl+V")
+        pasteAction.triggered.connect(self.PastePath)
+        editMenu.addAction(pasteAction)
+
+        # 3. Options Menu (Theme & Settings)
+        optionsMenu = self.menuBar.addMenu("&Options")
+    
+        themeAction = QAction("Toggle Dark Mode", self)
+        themeAction.triggered.connect(self.toggle_theme) # The function we discussed
+        optionsMenu.addAction(themeAction)
+    
+        settingsAction = QAction("Font Settings", self)
+        settingsAction.triggered.connect(self.openSettings)
+        optionsMenu.addAction(settingsAction)
+
+        # Add the menu bar to your main layout
+        # Assuming your .ui file has a main QVBoxLayout named 'verticalLayout'
+        self.layout().setMenuBar(self.menuBar)
+
     def RefreshPanels(self):
         """Reincarca listele de fisiere pentru ambele panouri."""
         self.setupTree(self.LeftTree, self.currentPathLeft)
@@ -217,6 +322,8 @@ class MyApp(QDialog):
         self.RightTree.viewport().installEventFilter(self)
 
         self.SortColumns()
+
+        self.SetupMenu()
 
         self.LeftTree.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
         self.RightTree.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
@@ -301,13 +408,28 @@ class MyApp(QDialog):
                     return True
         return super().eventFilter(source, event) # se termina de verificat eventul, si se intra in functia lui pentru a continua exectutia
     
-    def style_active_panel(self, active_tree: QTreeWidget):
-        inactive_tree = self.RightTree if active_tree == self.LeftTree else self.LeftTree
+    def style_active_panel(self, active_tree=None):
+        # If no tree is passed (like during a theme switch), find the current one
+        if active_tree is None:
+            if self.panel_activated == 'Left': active_tree = self.LeftTree
+            elif self.panel_activated == 'Right': active_tree = self.RightTree
+            else: active_tree = self.PanelTree
+
+        all_panels = [self.LeftTree, self.RightTree, self.PanelTree]
+
+        for tree in all_panels:
+            is_active = (tree == active_tree)
         
-        active_style = "QTreeWidget {border: 2px solid #0078D7;}"
-        inactive_style = "QTreeWidget {border: 1px solid gray;}"
-        active_tree.setStyleSheet(active_style)
-        inactive_tree.setStyleSheet(inactive_style)
+            if getattr(self, 'is_dark', False):
+                bg, text = "#1E1E1E", "#DCDCDC"
+                border = "#00A2FF" if is_active else "#444444"
+            else:
+                bg, text = "#FFFFFF", "#000000"
+                border = "#0078D7" if is_active else "#ABABAB"
+
+            width = "2px" if is_active else "1px"
+        
+            tree.setStyleSheet(f"QTreeWidget, QTreeView {{ background-color: {bg}; color: {text}; border: {width} solid {border}; }}")
 
     def getActivePanel(self):
         prefix = self.panel_activated
@@ -351,6 +473,80 @@ class MyApp(QDialog):
         unzip_action.triggered.connect(self.UnzipPath)
         
         menu.exec(active_tree.mapToGlobal(position))
+
+    def apply_dark_theme(self):
+        self.is_dark = True
+        # Fix the Window Panes and Menus
+        palette = self.palette()
+        palette.setColor(QtGui.QPalette.ColorRole.Window, QtGui.QColor(45, 45, 45))
+        palette.setColor(QtGui.QPalette.ColorRole.WindowText, QtCore.Qt.GlobalColor.white)
+        palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor(30, 30, 30))
+        palette.setColor(QtGui.QPalette.ColorRole.Text, QtCore.Qt.GlobalColor.white)
+        palette.setColor(QtGui.QPalette.ColorRole.Button, QtGui.QColor(45, 45, 45))
+        palette.setColor(QtGui.QPalette.ColorRole.ButtonText, QtCore.Qt.GlobalColor.white)
+        QApplication.setPalette(palette)
+
+        # Fix Buttons (Blue background on hover)
+        self.setStyleSheet("""
+            QPushButton { background-color: #3D3D3D; color: white; border: 1px solid #555; padding: 5px; }
+            QPushButton:hover { background-color: #0078D7; color: white; }
+            QLineEdit { background-color: #1E1E1E; color: white; border: 1px solid #555; }
+            QMenuBar::item:selected { background-color: #0078D7; color: white; }
+            QMenu::item:selected { background-color: #0078D7; color: white; }
+        """)
+        self.style_active_panel()
+
+    def apply_light_theme(self):
+        self.is_dark = False
+    
+        # 1. FORCE the Window Pane (the gray areas) to reset to System Light
+        # Using 'standardPalette' tells the OS to take back control
+        QApplication.setPalette(QApplication.style().standardPalette())
+
+        # 2. FORCE the Stylesheet to Light Mode
+        # We define background-colors explicitly so no 'Dark' remnants stay in the trees or panes
+        self.setStyleSheet("""
+            QDialog, QWidget { 
+                background-color: #f0f0f0; 
+                color: black; 
+            }
+            QPushButton { 
+                background-color: #e1e1e1; 
+                color: black; 
+                border: 1px solid #adadad; 
+                padding: 6px; 
+                border-radius: 2px;
+            }
+            QPushButton:hover { 
+                background-color: #e5f1fb; 
+                border: 1px solid #0078d7; 
+            }
+            QLineEdit { 
+                background-color: white; 
+                color: black; 
+                border: 1px solid #adadad; 
+            }
+            QMenuBar::item:selected { background-color: #e5f1fb; color: black; }
+            QMenu::item:selected { background-color: #0078D7; color: white; }
+        """)
+    
+        # 3. IMMEDIATELY update the interior panels (The Trees)
+        self.style_active_panel()
+
+    def auto_detect_theme(self):
+        # Get the system color palette
+        palette = QApplication.instance().palette()
+        bg_color = palette.window().color().lightness()
+    
+        # If lightness is low, it's a dark theme (0-255 scale)
+        if bg_color < 128:
+            print("Dark theme detected")
+            self.apply_dark_theme()
+            self.is_dark = True
+        else:
+            print("Light theme detected")
+            self.apply_light_theme()
+            self.is_dark = False
 
     def NavigateToPath(self):
         address = self.lineEdit.text()
@@ -799,7 +995,8 @@ class MyApp(QDialog):
         self.RightTree.setSortingEnabled(True)
         
         self.LeftTree.sortByColumn(0, QtCore.Qt.SortOrder.AscendingOrder)
-        self.RightTree.sortByColumn(0, QtCore.Qt.SortOrder.AscendingOrder)       
+        self.RightTree.sortByColumn(0, QtCore.Qt.SortOrder.AscendingOrder)
+    
     def setupTree(self, tree_widget: QTreeWidget, path: Path):
         tree_widget.clear()
         parent_path = path.parent.resolve()
@@ -829,6 +1026,7 @@ class MyApp(QDialog):
             file_info = QFileInfo(item['path'])
             icon = icon_provider.icon(file_info)
             tree_item.setIcon(0, icon)
+
     def setupPanel(self):
         self.model = QFileSystemModel()
         self.model.setRootPath("") 
@@ -865,6 +1063,7 @@ class MyApp(QDialog):
             self.lineEdit.setText(path)
 if __name__ == '__main__':
     app = QApplication(sys.argv)
+    app.setStyle("Fusion")
     myapp = MyApp()
     myapp.show()
     sys.exit(app.exec())
