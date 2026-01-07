@@ -1,12 +1,12 @@
 from faulthandler import is_enabled
 import sys
+from tkinter import Button
 from PyQt6.QtWidgets import QApplication, QInputDialog, QLabel, QPushButton, QSpinBox, QFileIconProvider, QWidget, QTreeWidgetItem, QTreeWidget, QDialog, QMessageBox, QMenu, QLineEdit, QFontDialog
 from PyQt6.uic import loadUi
 from pathlib import Path
-from PyQt6.QtCore import QFileInfo
-from PyQt6.QtWidgets import QTreeView, QVBoxLayout, QHeaderView
-from PyQt6.QtCore import QDir
-from PyQt6.QtGui import QFileSystemModel, QKeySequence, QShortcut
+from PyQt6.QtCore import QFileInfo, QDir
+from PyQt6.QtWidgets import QTreeView, QVBoxLayout, QHeaderView, QMenuBar, QMenu
+from PyQt6.QtGui import QFileSystemModel, QKeySequence, QShortcut, QAction, QPalette, QColor
 import os
 import ctypes
 import shutil
@@ -15,7 +15,9 @@ import datetime
 from PyQt6.QtCore import Qt
 import PyQt6.QtCore as QtCore
 import webbrowser
+
 from PyQt6.uic.uiparser import QtGui
+
 def list_directory_contents(directory_path: str) -> list[dict]:
     path = Path(directory_path)
     if not path.is_dir():
@@ -37,21 +39,26 @@ def list_directory_contents(directory_path: str) -> list[dict]:
         except Exception:
             continue
     return contents
+
 class MyApp(QDialog):
 
     # obiecte de tipul respectiv
 
     LeftTree: QTreeWidget
+    LeftPanelTree : QTreeWidget
     RightTree: QTreeWidget
-    PanelTree : QTreeWidget
+    RightPanelTree : QTreeWidget
 
     AddButton: QPushButton
     BackButton: QPushButton
     NextButton: QPushButton
     DelButton: QPushButton
 
-    lineEdit: QLineEdit
-    FindPathButton: QPushButton
+    LeftPathLine: QLineEdit
+    LeftFindPathButton: QPushButton
+
+    RightPathLine: QLineEdit
+    RightFindPathButton: QPushButton
 
     PathHistoryBackLeft: list[Path]
     PathHistoryBackRight: list[Path]
@@ -66,11 +73,37 @@ class MyApp(QDialog):
     def __init__(self):
         super().__init__()
         loadUi('Display.ui', self)
+        self.all_panels = [self.LeftTree, self.RightTree, self.LeftPanelTree, self.RightPanelTree]
         self.setWindowState(QtCore.Qt.WindowState.WindowMaximized)
         self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowType.WindowMinimizeButtonHint | QtCore.Qt.WindowType.WindowMaximizeButtonHint) # creaza butonul de full screen
         self.buttons = self.findChildren(QPushButton)
         for btn in self.buttons:
             btn.clicked.connect(self.shortCutButton)
+
+        #Initializare drag and drop 
+
+        # Pentru panoul stâng (LeftTree)
+        self.LeftTree.setDragEnabled(True)
+        self.LeftTree.setAcceptDrops(True)
+        self.LeftTree.setDropIndicatorShown(True)
+        self.LeftTree.setDragDropMode(QtWidgets.QAbstractItemView.DragDropMode.DragDrop)
+        self.LeftTree.setDefaultDropAction(QtCore.Qt.DropAction.MoveAction)
+
+        # Pentru panoul drept (RightTree)
+        self.RightTree.setDragEnabled(True)
+        self.RightTree.setAcceptDrops(True)
+        self.RightTree.setDropIndicatorShown(True)
+        self.RightTree.setDragDropMode(QtWidgets.QAbstractItemView.DragDropMode.DragDrop)
+        self.RightTree.setDefaultDropAction(QtCore.Qt.DropAction.MoveAction)
+
+        self.LeftTree.dropEvent = lambda event: self.handle_drop(event, self.LeftTree)
+        self.RightTree.dropEvent = lambda event: self.handle_drop(event, self.RightTree)
+
+        # Suprascriem dragEnterEvent pentru a accepta acțiunea
+        self.LeftTree.dragEnterEvent = lambda event: event.accept()
+        self.RightTree.dragEnterEvent = lambda event: event.accept()
+        
+        self.is_dark = False
 
         self.adjustSize() 
         self.update()
@@ -117,12 +150,6 @@ class MyApp(QDialog):
         # Delete - Stergere
         QShortcut(QKeySequence(Qt.Key.Key_Delete), self).activated.connect(self.DelFile)
 
-        # Ctrl + C pentru Copiere
-        QShortcut(QKeySequence.StandardKey.Copy, self).activated.connect(self.CopyPath)
-
-        # Ctrl + V pentru Lipire
-        QShortcut(QKeySequence.StandardKey.Paste, self).activated.connect(self.PastePath)
-
         # Ctrl + X pentru Tăiere (Cut)
         QShortcut(QKeySequence.StandardKey.Cut, self).activated.connect(self.CutPath)
 
@@ -132,6 +159,8 @@ class MyApp(QDialog):
         # Sageata Dreapta (Next)
         QShortcut(QKeySequence(Qt.Key.Key_Right), self).activated.connect(self.GoNext)
 
+        self.auto_detect_theme()
+
     def openSettings(self):
         font, ok = QFontDialog.getFont(self.font(), self, "Selecteaza Fontul")
     
@@ -140,23 +169,122 @@ class MyApp(QDialog):
 
             self.LeftTree.setFont(font)
             self.RightTree.setFont(font)
-            self.PanelTree.setFont(font)
+            self.LeftPanelTree.setFont(font)
+            self.RightPanelTree.setFont(font)
 
             self.LeftTree.header().setFont(font)
             self.RightTree.header().setFont(font)
-            self.PanelTree.header().setFont(font)
+            self.LeftPanelTree.header().setFont(font)
+            self.RightPanelTree.header().setFont(font)
     
             for btn in self.buttons:
                 btn.setFont(font)
 
-            self.label1.setFont(font)
-            self.lineEdit.setFont(font)
+            self.LeftPathLabel.setFont(font)
+            self.LeftPathLine.setFont(font)
+            
+            self.RightPathLabel.setFont(font)
+            self.RightPathLine.setFont(font)
 
             for i in range(self.LeftTree.columnCount()):
                 self.LeftTree.resizeColumnToContents(i)
                 self.RightTree.resizeColumnToContents(i)
 
             print("Toate elementele de tip Tree au fost actualizate.")
+
+    def toggle_theme(self):
+        """Switches the application between Dark and Light mode."""
+        self.is_dark = not self.is_dark
+        if self.is_dark:
+            self.apply_dark_theme()
+        else:
+            self.apply_light_theme()
+
+    def refresh_panel_styles(self):
+        """Updates every single panel in the app at once."""
+        for tree in self.all_panels:
+            is_active = False
+            if self.panel_activated == 'Left' and tree == self.LeftTree:
+                is_active = True
+            elif self.panel_activated == 'Right' and tree == self.RightTree:
+                is_active = True
+            elif self.panel_activated == 'LeftPanel' and tree == self.LeftPanelTree:
+                is_active = True
+            elif self.panel_activated == 'RightPanel' and tree == self.RightPanelTree:
+                is_active = True
+
+            self.apply_single_panel_style(tree, is_active)
+
+    def apply_single_panel_style(self, tree, is_active):
+        # 1. Pick colors based on Theme
+        if self.is_dark:
+            bg = "#1E1E1E"
+            text = "white"
+            active_border = "#00A2FF"
+            inactive_border = "#444"
+        else:
+            bg = "white"
+            text = "black"
+            active_border = "#0078D7"
+            inactive_border = "#ababab"
+
+        # 2. Pick border thickness based on Focus
+        border_width = "2px" if is_active else "1px"
+        border_color = active_border if is_active else inactive_border
+
+        # 3. Apply it
+        tree.setStyleSheet(f"""
+            QTreeWidget {{
+                background-color: {bg};
+                color: {text};
+                border: {border_width} solid {border_color};
+            }}
+        """)
+
+    def SetupMenu(self):
+        # Create the Menu Bar
+        self.menuBar = QMenuBar(self)
+    
+        # 1. File Menu
+        fileMenu = self.menuBar.addMenu("&Fisier")
+    
+        exitAction = QAction("Iesire", self)
+        exitAction.setShortcut("Ctrl+Q")
+        exitAction.triggered.connect(self.close)
+        fileMenu.addAction(exitAction)
+
+        searchAction = QAction("Cautare", self)
+        searchAction.setShortcut("Ctrl+F")
+        searchAction.triggered.connect(self.OpenSearch)
+        fileMenu.addAction(searchAction)
+
+        # 2. Edit Menu
+        editMenu = self.menuBar.addMenu("&Editare")
+    
+        copyAction = QAction("Copiere", self)
+        copyAction.setShortcut("Ctrl+C")
+        copyAction.triggered.connect(self.CopyPath)
+        editMenu.addAction(copyAction)
+    
+        pasteAction = QAction("Lipire", self)
+        pasteAction.setShortcut("Ctrl+V")
+        pasteAction.triggered.connect(self.PastePath)
+        editMenu.addAction(pasteAction)
+
+        # 3. Options Menu (Theme & Settings)
+        optionsMenu = self.menuBar.addMenu("&Optiuni")
+    
+        themeAction = QAction("Schimba in Mod Intunecat", self)
+        themeAction.triggered.connect(self.toggle_theme)
+        optionsMenu.addAction(themeAction)
+    
+        settingsAction = QAction("Setari Font", self)
+        settingsAction.triggered.connect(self.openSettings)
+        optionsMenu.addAction(settingsAction)
+
+        # Add the menu bar to your main layout
+        # Assuming your .ui file has a main QVBoxLayout named 'verticalLayout'
+        self.layout().setMenuBar(self.menuBar)
 
     def RefreshPanels(self):
         """Reincarca listele de fisiere pentru ambele panouri."""
@@ -168,12 +296,15 @@ class MyApp(QDialog):
 
         self.LeftTree.installEventFilter(self)
         self.RightTree.installEventFilter(self)
-        self.lineEdit.installEventFilter(self)
+        self.LeftPathLine.installEventFilter(self)
+        self.RightPathLine.installEventFilter(self)
 
         self.LeftTree.viewport().installEventFilter(self)
         self.RightTree.viewport().installEventFilter(self)
 
         self.SortColumns()
+
+        self.SetupMenu()
 
         self.LeftTree.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
         self.RightTree.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
@@ -197,10 +328,13 @@ class MyApp(QDialog):
 
         self.style_active_panel(self.LeftTree)
 
-        self.lineEdit.returnPressed.connect(self.NavigateToPath)
-        self.FindPathButton.clicked.connect(self.NavigateToPath)
+        self.LeftPathLine.returnPressed.connect(self.NavigateToPathLeft)
+        self.LeftFindPathButton.clicked.connect(self.NavigateToPathLeft)
+        self.RightPathLine.returnPressed.connect(self.NavigateToPathRight)
+        self.RightFindPathButton.clicked.connect(self.NavigateToPathRight)
         
-        self.lineEdit.setText(str(self.currentPathLeft)) 
+        self.LeftPathLine.setText(str(self.currentPathLeft)) 
+        self.RightPathLine.setText(str(self.currentPathRight)) 
 
         self.setupPanel()
 
@@ -232,12 +366,15 @@ class MyApp(QDialog):
             elif source == self.RightTree:
                 self.panel_activated = 'Right'
                 self.style_active_panel(self.RightTree)
-            elif source == self.PanelTree:
-                self.panel_activated = 'Panel'
-                self.style_active_panel(self.PanelTree)
+            elif source == self.LeftPanelTree:
+                self.panel_activated = 'LeftPanel'
+                self.style_active_panel(self.LeftPanelTree)
+            elif source == self.RightPanelTree:
+                self.panel_activated = 'RightPanel'
+                self.style_active_panel(self.RightPanelTree)
 
         if event.type() == QtCore.QEvent.Type.MouseButtonPress:
-            if source in [self.LeftTree, self.LeftTree.viewport(), self.RightTree, self.RightTree.viewport(), self.PanelTree, self.PanelTree.viewport]:
+            if source in [self.LeftTree, self.LeftTree.viewport(), self.RightTree, self.RightTree.viewport(), self.LeftPanelTree, self.LeftPanelTree.viewport(), self.RightPanelTree, self.RightPanelTree.viewport()]:
             
                 if source in [self.LeftTree, self.LeftTree.viewport()]:
                     self.panel_activated = 'Left'
@@ -245,9 +382,12 @@ class MyApp(QDialog):
                 if source in [self.RightTree, self.RightTree.viewport()]:
                     self.panel_activated = 'Right'
                     self.style_active_panel(self.RightTree)
-                if source in [self.PanelTree, self.PanelTree.viewport()]:
-                    self.panel_activated = 'Panel'
-                    self.style_active_panel(self.RightTree)
+                if source in [self.LeftPanelTree, self.LeftPanelTree.viewport()]:
+                    self.panel_activated = 'LeftPanel'
+                    self.style_active_panel(self.LeftPanelTree)
+                if source in [self.RightPanelTree, self.RightPanelTree.viewport()]:
+                    self.panel_activated = 'RightPanel'
+                    self.style_active_panel(self.RightPanelTree)
 
                 # pentru mouse
                 if event.button() == Qt.MouseButton.XButton1:
@@ -258,17 +398,44 @@ class MyApp(QDialog):
                     return True
         return super().eventFilter(source, event) # se termina de verificat eventul, si se intra in functia lui pentru a continua exectutia
     
-    def style_active_panel(self, active_tree: QTreeWidget):
-        inactive_tree = self.RightTree if active_tree == self.LeftTree else self.LeftTree
+    def style_active_panel(self, active_tree=None):
+        # If no tree is passed (like during a theme switch), find the current one
+        if active_tree is None:
+            if self.panel_activated == 'Left': 
+                active_tree = self.LeftTree
+            elif self.panel_activated == 'Right': 
+                active_tree = self.RightTree
+            elif self.panel_activated == 'LeftPanel': 
+                active_tree = self.LeftPanelTree
+            else: 
+                active_tree = self.RightPanelTree
+
+        all_panels = [self.LeftTree, self.RightTree, self.LeftPanelTree, self.RightPanelTree]
+
+        for tree in all_panels:
+            is_active = (tree == active_tree)
         
-        active_style = "QTreeWidget {border: 2px solid #0078D7;}"
-        inactive_style = "QTreeWidget {border: 1px solid gray;}"
-        active_tree.setStyleSheet(active_style)
-        inactive_tree.setStyleSheet(inactive_style)
+            if getattr(self, 'is_dark', False):
+                bg, text = "#1E1E1E", "#DCDCDC"
+                border = "#00A2FF" if is_active else "#444444"
+            else:
+                bg, text = "#FFFFFF", "#000000"
+                border = "#0078D7" if is_active else "#ABABAB"
+
+            width = "2px" if is_active else "1px"
+        
+            tree.setStyleSheet(f"QTreeWidget, QTreeView {{ background-color: {bg}; color: {text}; border: {width} solid {border}; }}")
 
     def getActivePanel(self):
         prefix = self.panel_activated
-        active_tree = self.LeftTree if prefix == 'Left' else self.RightTree
+        if prefix == 'Left': 
+            active_tree = self.LeftTree
+        elif prefix == 'Right': 
+            active_tree = self.RightTree
+        elif prefix == 'LeftPanel': 
+            active_tree = self.LeftPanelTree
+        else:
+           active_tree = self.RightPanelTree
         return active_tree, prefix
 
     def showContextMenu(self, position):
@@ -309,13 +476,121 @@ class MyApp(QDialog):
         
         menu.exec(active_tree.mapToGlobal(position))
 
-    def NavigateToPath(self):
-        address = self.lineEdit.text()
+    def apply_dark_theme(self):
+        self.is_dark = True
+        # Fix the Window Panes and Menus
+        palette = self.palette()
+        palette.setColor(QtGui.QPalette.ColorRole.Window, QtGui.QColor(45, 45, 45))
+        palette.setColor(QtGui.QPalette.ColorRole.WindowText, QtCore.Qt.GlobalColor.white)
+        palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor(30, 30, 30))
+        palette.setColor(QtGui.QPalette.ColorRole.Text, QtCore.Qt.GlobalColor.white)
+        palette.setColor(QtGui.QPalette.ColorRole.Button, QtGui.QColor(45, 45, 45))
+        palette.setColor(QtGui.QPalette.ColorRole.ButtonText, QtCore.Qt.GlobalColor.white)
+        QApplication.setPalette(palette)
+
+        # Fix Buttons (Blue background on hover)
+        self.setStyleSheet("""
+            QPushButton { background-color: #3D3D3D; color: white; border: 1px solid #555; padding: 5px; }
+            QPushButton:hover { background-color: #0078D7; color: white; }
+            QLineEdit { background-color: #1E1E1E; color: white; border: 1px solid #555; }
+            QMenuBar::item:selected { background-color: #0078D7; color: white; }
+            QMenu::item:selected { background-color: #0078D7; color: white; }
+        """)
+        self.style_active_panel()
+
+    def apply_light_theme(self):
+        self.is_dark = False
+    
+        # 1. FORCE the Window Pane (the gray areas) to reset to System Light
+        # Using 'standardPalette' tells the OS to take back control
+        QApplication.setPalette(QApplication.style().standardPalette())
+
+        # 2. FORCE the Stylesheet to Light Mode
+        # We define background-colors explicitly so no 'Dark' remnants stay in the trees or panes
+        self.setStyleSheet("""
+            QDialog, QWidget { 
+                background-color: #f0f0f0; 
+                color: black; 
+            }
+            QPushButton { 
+                background-color: #e1e1e1; 
+                color: black; 
+                border: 1px solid #adadad; 
+                padding: 6px; 
+                border-radius: 2px;
+            }
+            QPushButton:hover { 
+                background-color: #e5f1fb; 
+                border: 1px solid #0078d7; 
+            }
+            QLineEdit { 
+                background-color: white; 
+                color: black; 
+                border: 1px solid #adadad; 
+            }
+            QMenuBar::item:selected { background-color: #e5f1fb; color: black; }
+            QMenu::item:selected { background-color: #0078D7; color: white; }
+        """)
+    
+        # 3. IMMEDIATELY update the interior panels (The Trees)
+        self.style_active_panel()
+
+    def auto_detect_theme(self):
+        try:
+            # Windows detection via registry (most reliable on Windows 10/11)
+            if sys.platform.startswith("win"):
+                try:
+                    import winreg
+                    reg_path = r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
+                    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, reg_path) as key:
+                        val, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
+                        # 0 => dark, 1 => light
+                        is_dark = (val == 0)
+                except Exception:
+                    # registry read failed -> fallback to palette
+                    print("Registry read failed")
+                    pal = QApplication.instance().palette()
+                    is_dark = pal.window().color().lightness() < 128
+
+            # macOS detection via `defaults` command
+            elif sys.platform == "darwin":
+                try:
+                    import subprocess
+                    p = subprocess.run(
+                        ["defaults", "read", "-g", "AppleInterfaceStyle"],
+                        capture_output=True, text=True, check=False
+                    )
+                    is_dark = "Dark" in p.stdout
+                except Exception:
+                    pal = QApplication.instance().palette()
+                    is_dark = pal.window().color().lightness() < 128
+
+            # Other (Linux/Wayland/other): use Qt palette as best-effort
+            else:
+                print("Fallback to pallete")
+                pal = QApplication.instance().palette()
+                is_dark = pal.window().color().lightness() < 128
+
+        except Exception as e:
+            print(f"auto_detect_theme: detection failed ({e}), falling back to light")
+            is_dark = False
+
+        if is_dark:
+            print("Applying dark theme")
+            self.apply_dark_theme()
+        else:
+            print("Applying light theme")
+            self.apply_light_theme()
+
+    def NavigateToPathLeft(self):
+        address = self.LeftPathLine.text()
         if not address:
             QMessageBox.warning(self, "Atentie", "Va rugam introduceti o cale sau o adresa.")
             return
 
-        active_tree, prefix = self.getActivePanel()
+        #active_tree, prefix = self.getActivePanel()
+        active_tree = self.LeftTree
+        prefix = "Left"
         current_path_attr = 'currentPath' + prefix
 
         try:
@@ -332,7 +607,7 @@ class MyApp(QDialog):
                 setattr(self, current_path_attr, target_path)
                 
                 self.setupTree(active_tree, target_path)
-                self.lineEdit.setText(str(target_path))
+                self.LeftPathLine.setText(str(target_path))
                 
                 # FIX FINAL: Forteaza focusul inapoi pe Tree Widget-ul activ
                 active_tree.setFocus() 
@@ -357,6 +632,58 @@ class MyApp(QDialog):
                 webbrowser.open(address)
             else:
                  QMessageBox.critical(self, "Eroare", f"Eroare la procesarea caii: {e}")
+
+    def NavigateToPathRight(self):
+        address = self.RightPathLine.text()
+        if not address:
+            QMessageBox.warning(self, "Atentie", "Va rugam introduceti o cale sau o adresa.")
+            return
+
+        #active_tree, prefix = self.getActivePanel()
+        active_tree = self.RightTree
+        prefix = "Right"
+        current_path_attr = 'currentPath' + prefix
+
+        try:
+            target_path = Path(address).resolve()
+
+            if target_path.is_dir():
+                
+                history_back = getattr(self, f'PathHistoryBack{prefix}')
+                history_next = getattr(self, f'PathHistoryNext{prefix}')
+                
+                history_back.append(getattr(self, current_path_attr))
+                history_next.clear()
+                
+                setattr(self, current_path_attr, target_path)
+                
+                self.setupTree(active_tree, target_path)
+                self.RightPathLine.setText(str(target_path))
+                
+                # FIX FINAL: Forteaza focusul inapoi pe Tree Widget-ul activ
+                active_tree.setFocus() 
+                print(f"Navigare la director: {target_path}")
+
+            elif target_path.is_file():
+                os.startfile(str(target_path))
+                print(f"Fisier deschis: {target_path}")
+                
+                # FIX FINAL: Forteaza focusul inapoi pe Tree Widget-ul activ
+                active_tree.setFocus()
+                
+            else:
+                QMessageBox.warning(self, "Eroare", f"Calea specificata nu este un director sau fisier valid.")
+
+        except FileNotFoundError:
+            QMessageBox.warning(self, "Eroare", f"Calea '{address}' nu a fost gasita.")
+        except PermissionError:
+            QMessageBox.critical(self, "Eroare de Permisiune", f"Acces interzis la calea '{address}'.")
+        except Exception as e:
+            if address.startswith(('http://', 'https://')):
+                webbrowser.open(address)
+            else:
+                 QMessageBox.critical(self, "Eroare", f"Eroare la procesarea caii: {e}")
+
     def RenameSelected(self):
         active_tree, prefix = self.getActivePanel()
         selected_item = active_tree.currentItem()
@@ -627,14 +954,14 @@ class MyApp(QDialog):
                     self.currentPathLeft = selected_path
                     self.setupTree(self.LeftTree, selected_path)
                     self.panel_activated = 'Left'
-                    self.lineEdit.setText(str(selected_path))
+                    self.LeftPathLine.setText(str(selected_path))
                 else:
                     self.PathHistoryBackRight.append(self.currentPathRight)
                     self.PathHistoryNextRight = []
                     self.currentPathRight = selected_path
                     self.setupTree(self.RightTree, selected_path)
                     self.panel_activated = 'Right'
-                    self.lineEdit.setText(str(selected_path))
+                    self.RightPathLine.setText(str(selected_path))
                 
                 self.style_active_panel(sender_widget)
 
@@ -684,7 +1011,7 @@ class MyApp(QDialog):
 
             setattr(self, current_path_attr, new_path)
             self.setupTree(active_tree, new_path)
-            self.lineEdit.setText(str(new_path))
+            self.LeftPathLine.setText(str(new_path))
             print(f"Inapoi la: {new_path}")
         else:
             print("Nu exista istoric anterior.")
@@ -703,10 +1030,11 @@ class MyApp(QDialog):
             
             setattr(self, current_path_attr, new_path)
             self.setupTree(active_tree, new_path)
-            self.lineEdit.setText(str(new_path))
+            self.LeftPathLine.setText(str(new_path))
             print(f"Inainte la: {new_path}")
         else:
             print("Nu exista istoric ulterior.")
+
     def DelFile(self):
         
         active_tree, prefix = self.getActivePanel()
@@ -756,7 +1084,8 @@ class MyApp(QDialog):
         self.RightTree.setSortingEnabled(True)
         
         self.LeftTree.sortByColumn(0, QtCore.Qt.SortOrder.AscendingOrder)
-        self.RightTree.sortByColumn(0, QtCore.Qt.SortOrder.AscendingOrder)       
+        self.RightTree.sortByColumn(0, QtCore.Qt.SortOrder.AscendingOrder)
+    
     def setupTree(self, tree_widget: QTreeWidget, path: Path):
         tree_widget.clear()
         parent_path = path.parent.resolve()
@@ -786,25 +1115,32 @@ class MyApp(QDialog):
             file_info = QFileInfo(item['path'])
             icon = icon_provider.icon(file_info)
             tree_item.setIcon(0, icon)
+
     def setupPanel(self):
         self.model = QFileSystemModel()
         self.model.setRootPath("") 
         self.model.setFilter(QDir.Filter.Dirs | QDir.Filter.NoDotAndDotDot | QDir.Filter.Hidden | QDir.Filter.System)
 
-        self.PanelTree.setModel(self.model)
+        self.LeftPanelTree.setModel(self.model)
+        self.RightPanelTree.setModel(self.model)
 
         for i in range(1, self.model.columnCount()):
-            self.PanelTree.setColumnHidden(i, True)
+            self.LeftPanelTree.setColumnHidden(i, True)
+            self.RightPanelTree.setColumnHidden(i, True)
     
-        self.PanelTree.header().hide()
-        self.PanelTree.setAnimated(True)
-        self.PanelTree.setIndentation(20)
+        self.LeftPanelTree.header().hide()
+        self.LeftPanelTree.setAnimated(True)
+        self.LeftPanelTree.setIndentation(10)
+        self.RightPanelTree.header().hide()
+        self.RightPanelTree.setAnimated(True)
+        self.RightPanelTree.setIndentation(10)
 
         root_index = self.model.index("")
-        self.PanelTree.expand(root_index)
+        self.LeftPanelTree.expand(root_index)
+        self.RightPanelTree.expand(root_index)
 
         self.PanelTree.clicked.connect(self.PanelClick)
-        # Obtinem obiectul header al TreeView-ului
+        # Obținem obiectul header al TreeView-ului
         header = self.PanelTree.header()
 
         # 1. Permitem coloanelor sa iasa din cadrul vizibil (activează scroll-ul)
@@ -813,15 +1149,116 @@ class MyApp(QDialog):
         # 2. Setam prima coloana (cea cu numele) sa se auto-dimensioneze
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
 
-    def PanelClick(self, index):
+
+    def LeftPanelClick(self, index):
         path = self.model.filePath(index)
         if os.path.isdir(path):
-            active_tree, prefix = self.getActivePanel()
+            active_tree = self.LeftTree
+            prefix = "Left"
             setattr(self, f'currentPath{prefix}', Path(path))
             self.setupTree(active_tree, Path(path))
-            self.lineEdit.setText(path)
+            self.LeftPathLine.setText(path)
+
+    def RightPanelClick(self, index):
+        path = self.model.filePath(index)
+        if os.path.isdir(path):
+            active_tree = self.RightTree
+            prefix = "Right"
+            setattr(self, f'currentPath{prefix}', Path(path))
+            self.setupTree(active_tree, Path(path))
+            self.RightPathLine.setText(path)
+
+    def OpenSearch(self):
+        active_tree = self.getActivePanel()
+        if "Left" in str(active_tree):
+            prefix = "Left"
+        else:
+            prefix = "Right"
+        current_path = getattr(self, f'currentPath{prefix}')
+    
+        dialog = SearchDialog(current_path, self)
+        # Connect signal to search class:
+        dialog.location_selected.connect(self.JumpToLocation)
+        dialog.exec()
+
+    def JumpToLocation(self, folder_path, file_name):
+        # This function receives the data from the search window
+        active_tree, prefix = self.getActivePanel()
+    
+        # 1. Update the internal current path variable
+        setattr(self, f'currentPath{prefix}', Path(folder_path))
+    
+        # 2. Update the Path input bar (Changed 'Path' to 'Find')
+        path_line_edit = getattr(self, f'{prefix}FindPathButton') 
+        path_line_edit.setText(folder_path)
+    
+        # 3. Refresh the tree widget
+        self.RefreshPanels()
+    
+        # 4. Find and select the specific file
+        # We wait a tiny bit for the tree to populate
+        QtCore.QTimer.singleShot(100, lambda: self.select_file_in_tree(active_tree, file_name))
+
+    def select_file_in_tree(self, tree, file_name):
+        for i in range(tree.topLevelItemCount()):
+            item = tree.topLevelItem(i)
+            if item.text(0) == file_name:
+                tree.setCurrentItem(item)
+                tree.scrollToItem(item)
+                break
+
+    def handle_drop(self, event, target_tree):
+        # Verifică dacă datele conțin referințe la fișiere (sau itemi de listă)
+        if event.mimeData().hasFormat('application/x-qabstractitemmodeldatalist'):
+            source_tree = event.source()
+            if source_tree == target_tree:
+                event.ignore() # Nu facem nimic dacă e același panou
+                return
+
+            # Obține calea sursă și calea destinație
+            selected_items = source_tree.selectedItems()
+            if not selected_items:
+                return
+
+            # Determinăm folderul destinație (unde s-a făcut drop)
+            prefix_target = "Left" if target_tree == self.LeftTree else "Right"
+            prefix_source = "Right" if target_tree == self.LeftTree else "Left"
+        
+            target_dir = getattr(self, f'currentPath{prefix_target}')
+            source_dir = getattr(self, f'currentPath{prefix_source}')
+
+            # Verificăm dacă tasta CTRL este apăsată (Daca da, in loc de mutare, copiem)
+            is_ctrl_pressed = event.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier
+
+            for item in selected_items:
+                file_name = item.text(0)
+                src_path = source_dir / file_name
+                dst_path = target_dir / file_name
+
+                try:
+                    if is_ctrl_pressed:
+                        # LOGICA DE COPIERE
+                        if src_path.is_dir():
+                            shutil.copytree(src_path, dst_path, dirs_exist_ok=True)
+                        else:
+                            shutil.copy2(src_path, dst_path)
+                        print(f"Copiat: {file_name}")
+                    else:
+                        # LOGICA DE MUTARE (default)
+                        shutil.move(str(src_path), str(dst_path))
+                        print(f"Mutat: {file_name}")
+
+                except Exception as e:
+                    print(f"Eroare la procesarea fisierului {file_name}: {e}")
+                    QMessageBox.warning(self, "Eroare", f"Nu s-a putut procesa {file_name}: {e}")
+
+            # Refresh la ambele panouri
+            self.RefreshPanels()
+            event.accept()
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
+    app.setStyle("Fusion")
     myapp = MyApp()
     myapp.show()
     sys.exit(app.exec())
