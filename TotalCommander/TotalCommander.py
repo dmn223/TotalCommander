@@ -274,34 +274,39 @@ class MyApp(QDialog):
         self.menuBar = QMenuBar(self)
     
         # 1. File Menu
-        fileMenu = self.menuBar.addMenu("&File")
+        fileMenu = self.menuBar.addMenu("&Fisier")
     
-        exitAction = QAction("Exit", self)
+        exitAction = QAction("Iesire", self)
         exitAction.setShortcut("Ctrl+Q")
         exitAction.triggered.connect(self.close)
         fileMenu.addAction(exitAction)
 
-        # 2. Edit Menu (Connecting your existing functions)
-        editMenu = self.menuBar.addMenu("&Edit")
+        searchAction = QAction("Cautare", self)
+        searchAction.setShortcut("Ctrl+F")
+        searchAction.triggered.connect(self.OpenSearch)
+        fileMenu.addAction(searchAction)
+
+        # 2. Edit Menu
+        editMenu = self.menuBar.addMenu("&Editare")
     
-        copyAction = QAction("Copy", self)
+        copyAction = QAction("Copiere", self)
         copyAction.setShortcut("Ctrl+C")
         copyAction.triggered.connect(self.CopyPath)
         editMenu.addAction(copyAction)
     
-        pasteAction = QAction("Paste", self)
+        pasteAction = QAction("Lipire", self)
         pasteAction.setShortcut("Ctrl+V")
         pasteAction.triggered.connect(self.PastePath)
         editMenu.addAction(pasteAction)
 
         # 3. Options Menu (Theme & Settings)
-        optionsMenu = self.menuBar.addMenu("&Options")
+        optionsMenu = self.menuBar.addMenu("&Optiuni")
     
-        themeAction = QAction("Toggle Dark Mode", self)
-        themeAction.triggered.connect(self.toggle_theme) # The function we discussed
+        themeAction = QAction("Schimba in Mod Intunecat", self)
+        themeAction.triggered.connect(self.toggle_theme)
         optionsMenu.addAction(themeAction)
     
-        settingsAction = QAction("Font Settings", self)
+        settingsAction = QAction("Setari Font", self)
         settingsAction.triggered.connect(self.openSettings)
         optionsMenu.addAction(settingsAction)
 
