@@ -204,16 +204,15 @@ class MyApp(QDialog):
             print("Toate elementele de tip Tree au fost actualizate.")
 
     def toggle_theme(self):
-        """Switches the application between Dark and Light mode."""
         self.is_dark = not self.is_dark
+    
         if self.is_dark:
+            self.apply_dark_theme()
             self.themeAction.setText("Schimba in Mod Luminos")
-            self.apply_dark_theme()
         else:
-            self.themeAction.setText("Schimba in Mod Intunecat")
             self.apply_light_theme()
-
-            self.apply_dark_theme()
+            self.themeAction.setText("Schimba in Mod Intunecat")
+        self.style_active_panel()
 
     def refresh_panel_styles(self):
         """Updates every single panel in the app at once."""
@@ -288,7 +287,7 @@ class MyApp(QDialog):
 
         # 3. Options Menu (Theme & Settings)
         optionsMenu = self.menuBar.addMenu("&Optiuni")
-    
+
         self.themeAction = QAction("Schimba in Mod Luminnos", self)
         self.themeAction.triggered.connect(self.toggle_theme)
         optionsMenu.addAction(self.themeAction)
@@ -301,17 +300,10 @@ class MyApp(QDialog):
         self.changeAction.triggered.connect(self.ChangeSize)
         optionsMenu.addAction(self.changeAction)
 
-        themeAction = QAction("Schimba in Mod Intunecat", self)
-        themeAction.triggered.connect(self.toggle_theme)
-        optionsMenu.addAction(themeAction)
-    
-        settingsAction = QAction("Setari Font", self)
-        settingsAction.triggered.connect(self.openSettings)
-        optionsMenu.addAction(settingsAction)
-
         # Add the menu bar to your main layout
         # Assuming your .ui file has a main QVBoxLayout named 'verticalLayout'
         self.layout().setMenuBar(self.menuBar)
+
     def ChangeSize(self):
         dialog = SizeInputDialog(self)
     
@@ -341,6 +333,7 @@ class MyApp(QDialog):
                     self.horizontalLayout_2.setStretch(1, p_right)
             except Exception as e:
                 print(f"Eroare: {e}")
+
     def RefreshPanels(self):
         """Reincarca listele de fisiere pentru ambele panouri."""
         self.setupTree(self.LeftTree, self.currentPathLeft)

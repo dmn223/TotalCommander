@@ -20,7 +20,7 @@ import webbrowser
 class SettingsMenu(QDialog):
     def __init__(self, parent_window):
         super().__init__(parent_window)
-
+        self.parent_window = parent_window
     def chooseFont(self):
         font, ok = QFontDialog.getFont(self.parent_window.font(), self)
         if ok:
