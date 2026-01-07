@@ -176,17 +176,8 @@ class MyApp(QDialog):
         # Delete - Stergere
         QShortcut(QKeySequence(Qt.Key.Key_Delete), self).activated.connect(self.DelFile)
 
-        # Ctrl + C pentru Copiere
-        QShortcut(QKeySequence.StandardKey.Copy, self).activated.connect(self.CopyPath)
-
-        # Ctrl + V pentru Lipire
-        QShortcut(QKeySequence.StandardKey.Paste, self).activated.connect(self.PastePath)
-
         # Ctrl + X pentru Tăiere (Cut)
         QShortcut(QKeySequence.StandardKey.Cut, self).activated.connect(self.CutPath)
-
-        # Ctrl + F pentru Cautare
-        QShortcut(QKeySequence("Ctrl+F"), self).activated.connect(self.OpenSearch)
 
         # Săgeată Stânga (Back)
         QShortcut(QKeySequence(Qt.Key.Key_Left), self).activated.connect(self.GoBack)
