@@ -20,33 +20,6 @@ import webbrowser
 class SettingsMenu(QDialog):
     def __init__(self, parent_window):
         super().__init__(parent_window)
-        self.parent_window = parent_window
-        self.setWindowTitle("Setări Font")
-        self.setFixedSize(300, 200)
-        
-        layout = QVBoxLayout()
-
-        self.label = QLabel("Marime Font:")
-        layout.addWidget(self.label)
-        
-        self.fontSizeSpinBox = QSpinBox()
-        self.fontSizeSpinBox.setRange(8, 72)
-        current_size = self.parent_window.font().pointSize()
-        self.fontSizeSpinBox.setValue(current_size)
-        layout.addWidget(self.fontSizeSpinBox)
-
-        self.fontBtn = QPushButton("Schimba Familia Fontului")
-        self.fontBtn.clicked.connect(self.chooseFont)
-        layout.addWidget(self.fontBtn)
-
-        self.fontSizeSpinBox.valueChanged.connect(self.applySettings)
-
-        self.themeBtn = QPushButton("Schimba Modul (Dark/Light)")
-        self.themeBtn.clicked.connect(self.toggle_theme)
-
-        layout.addWidget(self.themeBtn)
-        
-        self.setLayout(layout)
 
     def chooseFont(self):
         font, ok = QFontDialog.getFont(self.parent_window.font(), self)
@@ -69,12 +42,13 @@ class SettingsMenu(QDialog):
         
         self.parent_window.setFont(current_font)
         self.parent_window.update()
+
 class SizeInputDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Schimbă Dimensiuni")
         self.setFixedSize(400, 180)
-
+        
         # Mărim textul pentru tot dialogul
         self.setStyleSheet("""
             QDialog { background-color: #2d2d2d; color: white; }
