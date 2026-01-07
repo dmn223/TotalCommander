@@ -7,6 +7,7 @@ from PyQt6.uic import loadUi
 from pathlib import Path
 from PyQt6.QtCore import QFileInfo, QDir
 from PyQt6.QtWidgets import QTreeView, QVBoxLayout, QHeaderView, QMenuBar, QMenu, QFrame
+from PyQt6.QtWidgets import QTreeView, QVBoxLayout, QHeaderView, QMenuBar, QMenu
 from PyQt6.QtGui import QFileSystemModel, QKeySequence, QShortcut, QAction, QPalette, QColor
 import os
 import ctypes
@@ -212,6 +213,8 @@ class MyApp(QDialog):
             self.themeAction.setText("Schimba in Mod Intunecat")
             self.apply_light_theme()
 
+            self.apply_dark_theme()
+
     def refresh_panel_styles(self):
         """Updates every single panel in the app at once."""
         for tree in self.all_panels:
@@ -297,6 +300,14 @@ class MyApp(QDialog):
         self.changeAction = QAction("Shimba Dimnesiunea Panel-urilor", self)
         self.changeAction.triggered.connect(self.ChangeSize)
         optionsMenu.addAction(self.changeAction)
+
+        themeAction = QAction("Schimba in Mod Intunecat", self)
+        themeAction.triggered.connect(self.toggle_theme)
+        optionsMenu.addAction(themeAction)
+    
+        settingsAction = QAction("Setari Font", self)
+        settingsAction.triggered.connect(self.openSettings)
+        optionsMenu.addAction(settingsAction)
 
         # Add the menu bar to your main layout
         # Assuming your .ui file has a main QVBoxLayout named 'verticalLayout'

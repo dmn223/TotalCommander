@@ -11,6 +11,7 @@
     <OutputPath>.</OutputPath>
     <Name>TotalCommander</Name>
     <RootNamespace>TotalCommander</RootNamespace>
+    <InterpreterId>Global|PythonCore|3.9</InterpreterId>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -24,6 +25,9 @@
     <Compile Include="SearchDialog.py" />
     <Compile Include="Settings.py" />
     <Compile Include="TotalCommander.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <InterpreterReference Include="Global|PythonCore|3.9" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
