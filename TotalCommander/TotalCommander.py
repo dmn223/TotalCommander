@@ -5,9 +5,8 @@ from PyQt6 import QtGui, QtCore, QtWidgets
 from PyQt6.QtWidgets import QApplication, QInputDialog, QLabel, QPushButton, QSpinBox, QFileIconProvider, QWidget, QTreeWidgetItem, QTreeWidget, QDialog, QMessageBox, QMenu, QLineEdit, QFontDialog
 from PyQt6.uic import loadUi
 from pathlib import Path
-from PyQt6.QtCore import QFileInfo
+from PyQt6.QtCore import QFileInfo, QDir
 from PyQt6.QtWidgets import QTreeView, QVBoxLayout, QHeaderView, QMenuBar, QMenu
-from PyQt6.QtCore import QDir
 from PyQt6.QtGui import QFileSystemModel, QKeySequence, QShortcut, QAction, QPalette, QColor
 import os
 import ctypes
@@ -17,6 +16,7 @@ import datetime
 from PyQt6.QtCore import Qt
 import PyQt6.QtCore as QtCore
 import webbrowser
+from SearchDialog import SearchDialog
 
 def list_directory_contents(directory_path: str) -> list[dict]:
     path = Path(directory_path)
@@ -184,6 +184,9 @@ class MyApp(QDialog):
 
         # Ctrl + X pentru Tăiere (Cut)
         QShortcut(QKeySequence.StandardKey.Cut, self).activated.connect(self.CutPath)
+
+        # Ctrl + F pentru Cautare
+        QShortcut(QKeySequence("Ctrl+F"), self).activated.connect(self.OpenSearch)
 
         # Săgeată Stânga (Back)
         QShortcut(QKeySequence(Qt.Key.Key_Left), self).activated.connect(self.GoBack)
@@ -1061,6 +1064,42 @@ class MyApp(QDialog):
             setattr(self, f'currentPath{prefix}', Path(path))
             self.setupTree(active_tree, Path(path))
             self.lineEdit.setText(path)
+
+    def OpenSearch(self):
+        active_tree, prefix = self.getActivePanel()
+        current_path = getattr(self, f'currentPath{prefix}')
+    
+        dialog = SearchDialog(current_path, self)
+        # Connect signal to search class:
+        dialog.location_selected.connect(self.JumpToLocation)
+        dialog.exec()
+
+    def JumpToLocation(self, folder_path, file_name):
+        # This function receives the data from the search window
+        active_tree, prefix = self.getActivePanel()
+    
+        # 1. Update the internal current path variable
+        setattr(self, f'currentPath{prefix}', Path(folder_path))
+    
+        # 2. Update the Path input bar (Changed 'Path' to 'Find')
+        path_line_edit = getattr(self, f'Find{prefix}') 
+        path_line_edit.setText(folder_path)
+    
+        # 3. Refresh the tree widget
+        self.refresh_tree(active_tree, folder_path)
+    
+        # 4. Find and select the specific file
+        # We wait a tiny bit for the tree to populate
+        QtCore.QTimer.singleShot(100, lambda: self.select_file_in_tree(active_tree, file_name))
+
+    def select_file_in_tree(self, tree, file_name):
+        for i in range(tree.topLevelItemCount()):
+            item = tree.topLevelItem(i)
+            if item.text(0) == file_name:
+                tree.setCurrentItem(item)
+                tree.scrollToItem(item)
+                break
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
