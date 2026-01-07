@@ -1,6 +1,5 @@
 from faulthandler import is_enabled
 import sys
-from tkinter import Button
 from PyQt6.QtWidgets import QApplication, QInputDialog, QLabel, QPushButton, QSpinBox, QFileIconProvider, QWidget, QTreeWidgetItem, QTreeWidget, QDialog, QMessageBox, QMenu, QLineEdit, QFontDialog
 from PyQt6.uic import loadUi
 from pathlib import Path
@@ -16,9 +15,7 @@ import datetime
 from PyQt6.QtCore import Qt
 import PyQt6.QtCore as QtCore
 import webbrowser
-
 from PyQt6.uic.uiparser import QtGui
-
 def list_directory_contents(directory_path: str) -> list[dict]:
     path = Path(directory_path)
     if not path.is_dir():
@@ -40,46 +37,6 @@ def list_directory_contents(directory_path: str) -> list[dict]:
         except Exception:
             continue
     return contents
-
-class SettingsMenu(QDialog):
-    def __init__(self, parent_window):
-        super().__init__(parent_window)
-        self.parent_window = parent_window
-        self.setWindowTitle("Setări Font")
-        self.setFixedSize(300, 200)
-        
-        layout = QVBoxLayout()
-
-        self.label = QLabel("Marime Font:")
-        layout.addWidget(self.label)
-        
-        self.fontSizeSpinBox = QSpinBox()
-        self.fontSizeSpinBox.setRange(8, 72)
-        current_size = self.parent_window.font().pointSize()
-        self.fontSizeSpinBox.setValue(current_size)
-        layout.addWidget(self.fontSizeSpinBox)
-
-        self.fontBtn = QPushButton("Schimba Familia Fontului")
-        self.fontBtn.clicked.connect(self.chooseFont)
-        layout.addWidget(self.fontBtn)
-
-        self.fontSizeSpinBox.valueChanged.connect(self.applySettings)
-        
-        self.setLayout(layout)
-
-    def chooseFont(self):
-        font, ok = QFontDialog.getFont(self.parent_window.font(), self)
-        if ok:
-            self.parent_window.setFont(font)
-            self.fontSizeSpinBox.setValue(font.pointSize())
-
-    def applySettings(self):
-        new_size = self.fontSizeSpinBox.value()
-        current_font = self.parent_window.font()
-        current_font.setPointSize(new_size)
-        
-        self.parent_window.setFont(current_font)
-        self.parent_window.update()
 class MyApp(QDialog):
 
     # obiecte de tipul respectiv
@@ -169,14 +126,14 @@ class MyApp(QDialog):
         # Ctrl + X pentru Tăiere (Cut)
         QShortcut(QKeySequence.StandardKey.Cut, self).activated.connect(self.CutPath)
 
-        # Săgeată Stânga (Back)
+        # Sageata Stanga (Back)
         QShortcut(QKeySequence(Qt.Key.Key_Left), self).activated.connect(self.GoBack)
 
-        # Săgeată Dreapta (Next)
+        # Sageata Dreapta (Next)
         QShortcut(QKeySequence(Qt.Key.Key_Right), self).activated.connect(self.GoNext)
 
     def openSettings(self):
-        font, ok = QFontDialog.getFont(self.font(), self, "Selectează Fontul")
+        font, ok = QFontDialog.getFont(self.font(), self, "Selecteaza Fontul")
     
         if ok:
             self.setFont(font)
@@ -847,13 +804,13 @@ class MyApp(QDialog):
         self.PanelTree.expand(root_index)
 
         self.PanelTree.clicked.connect(self.PanelClick)
-        # Obținem obiectul header al TreeView-ului
+        # Obtinem obiectul header al TreeView-ului
         header = self.PanelTree.header()
 
-        # 1. Permitem coloanelor să iasă din cadrul vizibil (activează scroll-ul)
+        # 1. Permitem coloanelor sa iasa din cadrul vizibil (activează scroll-ul)
         header.setStretchLastSection(False)
 
-        # 2. Setăm prima coloană (cea cu numele) să se auto-dimensioneze
+        # 2. Setam prima coloana (cea cu numele) sa se auto-dimensioneze
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
 
     def PanelClick(self, index):
