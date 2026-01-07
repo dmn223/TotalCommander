@@ -1,11 +1,12 @@
 from faulthandler import is_enabled
 import sys
 from tkinter import Button
+from PyQt6 import QtGui, QtCore, QtWidgets
 from PyQt6.QtWidgets import QApplication, QInputDialog, QLabel, QPushButton, QSpinBox, QFileIconProvider, QWidget, QTreeWidgetItem, QTreeWidget, QDialog, QMessageBox, QMenu, QLineEdit, QFontDialog
 from PyQt6.uic import loadUi
 from pathlib import Path
 from PyQt6.QtCore import QFileInfo, QDir
-from PyQt6.QtWidgets import QTreeView, QVBoxLayout, QHeaderView, QMenuBar, QMenu
+from PyQt6.QtWidgets import QTreeView, QVBoxLayout, QHeaderView, QMenuBar, QMenu, QFrame
 from PyQt6.QtGui import QFileSystemModel, QKeySequence, QShortcut, QAction, QPalette, QColor
 import os
 import ctypes
@@ -15,9 +16,9 @@ import datetime
 from PyQt6.QtCore import Qt
 import PyQt6.QtCore as QtCore
 import webbrowser
-
-from PyQt6.uic.uiparser import QtGui
-
+from SearchDialog import SearchDialog
+from Settings import SettingsMenu
+from Settings import SizeInputDialog
 def list_directory_contents(directory_path: str) -> list[dict]:
     path = Path(directory_path)
     if not path.is_dir():
@@ -54,6 +55,12 @@ class MyApp(QDialog):
     NextButton: QPushButton
     DelButton: QPushButton
 
+    butonLupa: QPushButton
+    butonRefresh: QPushButton
+    butonCreare: QPushButton
+    butonArhivare: QPushButton
+    butonDezarhivare: QPushButton
+
     LeftPathLine: QLineEdit
     LeftFindPathButton: QPushButton
 
@@ -64,6 +71,9 @@ class MyApp(QDialog):
     PathHistoryBackRight: list[Path]
     PathHistoryNextLeft: list[Path]
     PathHistoryNextRight: list[Path]
+
+    frameTreesLeft : QFrame
+    frameTreesRight : QFrame
 
     currentPathLeft: Path
     currentPathRight: Path
@@ -153,16 +163,16 @@ class MyApp(QDialog):
         # Ctrl + X pentru Tăiere (Cut)
         QShortcut(QKeySequence.StandardKey.Cut, self).activated.connect(self.CutPath)
 
-        # Sageata Stanga (Back)
+        # Săgeată Stânga (Back)
         QShortcut(QKeySequence(Qt.Key.Key_Left), self).activated.connect(self.GoBack)
 
-        # Sageata Dreapta (Next)
+        # Săgeată Dreapta (Next)
         QShortcut(QKeySequence(Qt.Key.Key_Right), self).activated.connect(self.GoNext)
 
         self.auto_detect_theme()
 
     def openSettings(self):
-        font, ok = QFontDialog.getFont(self.font(), self, "Selecteaza Fontul")
+        font, ok = QFontDialog.getFont(self.font(), self, "Selectează Fontul")
     
         if ok:
             self.setFont(font)
@@ -196,8 +206,10 @@ class MyApp(QDialog):
         """Switches the application between Dark and Light mode."""
         self.is_dark = not self.is_dark
         if self.is_dark:
+            self.themeAction.setText("Schimba in Mod Luminos")
             self.apply_dark_theme()
         else:
+            self.themeAction.setText("Schimba in Mod Intunecat")
             self.apply_light_theme()
 
     def refresh_panel_styles(self):
@@ -274,18 +286,50 @@ class MyApp(QDialog):
         # 3. Options Menu (Theme & Settings)
         optionsMenu = self.menuBar.addMenu("&Optiuni")
     
-        themeAction = QAction("Schimba in Mod Intunecat", self)
-        themeAction.triggered.connect(self.toggle_theme)
-        optionsMenu.addAction(themeAction)
+        self.themeAction = QAction("Schimba in Mod Luminnos", self)
+        self.themeAction.triggered.connect(self.toggle_theme)
+        optionsMenu.addAction(self.themeAction)
     
-        settingsAction = QAction("Setari Font", self)
-        settingsAction.triggered.connect(self.openSettings)
-        optionsMenu.addAction(settingsAction)
+        self.settingsAction = QAction("Setari Font", self)
+        self.settingsAction.triggered.connect(self.openSettings)
+        optionsMenu.addAction(self.settingsAction)
+
+        self.changeAction = QAction("Shimba Dimnesiunea Panel-urilor", self)
+        self.changeAction.triggered.connect(self.ChangeSize)
+        optionsMenu.addAction(self.changeAction)
 
         # Add the menu bar to your main layout
         # Assuming your .ui file has a main QVBoxLayout named 'verticalLayout'
         self.layout().setMenuBar(self.menuBar)
+    def ChangeSize(self):
+        dialog = SizeInputDialog(self)
+    
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            val_stretch, val_fixed = dialog.get_data()
+        
+            try:
+                for frame in [self.frameTreesLeft, self.frameTreesRight]:
+                    frame.setMinimumWidth(0)
+                    frame.setMaximumWidth(16777215)
+                    # Schimbăm policy-ul din 'Preferred' în 'Expanding'
+                    frame.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
 
+                # --- PASUL 2: APLICARE STRETCH (Proporții) ---
+                p_parts = val_stretch.split()
+                s_parts = val_fixed.split()
+                if len(s_parts) >= 2:
+                    s_left = int(s_parts[0])
+                    s_right = int(s_parts[1])
+                    self.horizontalLayout_4.setStretch(0, s_left)
+                    self.horizontalLayout_4.setStretch(1, s_right)
+
+                if len(p_parts) >= 2:
+                    p_left = int(p_parts[0])
+                    p_right = int(p_parts[1])
+                    self.horizontalLayout_2.setStretch(0, p_left)
+                    self.horizontalLayout_2.setStretch(1, p_right)
+            except Exception as e:
+                print(f"Eroare: {e}")
     def RefreshPanels(self):
         """Reincarca listele de fisiere pentru ambele panouri."""
         self.setupTree(self.LeftTree, self.currentPathLeft)
@@ -325,6 +369,11 @@ class MyApp(QDialog):
 
         self.BackButton.clicked.connect(self.GoBack)
         self.NextButton.clicked.connect(self.GoNext)
+        self.butonLupa.clicked.connect(self.OpenSearch)
+        self.butonRefresh.clicked.connect(self.RefreshPanels)
+        self.butonCreare.clicked.connect(self.AddFile)
+        self.butonArhivare.clicked.connect(self.ZipPath)
+        self.butonDezarhivare.clicked.connect(self.UnzipPath)
 
         self.style_active_panel(self.LeftTree)
 
@@ -1139,14 +1188,23 @@ class MyApp(QDialog):
         self.LeftPanelTree.expand(root_index)
         self.RightPanelTree.expand(root_index)
 
-        self.PanelTree.clicked.connect(self.PanelClick)
+        self.LeftPanelTree.clicked.connect(self.LeftPanelClick)
+        self.RightPanelTree.clicked.connect(self.RightPanelClick)
         # Obținem obiectul header al TreeView-ului
-        header = self.PanelTree.header()
+        header = self.LeftPanelTree.header()
 
-        # 1. Permitem coloanelor sa iasa din cadrul vizibil (activează scroll-ul)
+        # 1. Permitem coloanelor să iasă din cadrul vizibil (activează scroll-ul)
         header.setStretchLastSection(False)
 
-        # 2. Setam prima coloana (cea cu numele) sa se auto-dimensioneze
+        # 2. Setăm prima coloană (cea cu numele) să se auto-dimensioneze
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        
+        header = self.RightPanelTree.header()
+
+        # 1. Permitem coloanelor să iasă din cadrul vizibil (activează scroll-ul)
+        header.setStretchLastSection(False)
+
+        # 2. Setăm prima coloană (cea cu numele) să se auto-dimensioneze
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
 
 

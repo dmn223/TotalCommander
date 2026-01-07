@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1324</width>
+    <width>1121</width>
     <height>825</height>
    </rect>
   </property>
@@ -41,7 +41,17 @@
         </font>
        </property>
        <property name="text">
-        <string>Back - Left Arrow</string>
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset>
+         <normaloff>icons/left-arrow.png</normaloff>icons/left-arrow.png</iconset>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>18</width>
+         <height>18</height>
+        </size>
        </property>
       </widget>
      </item>
@@ -55,72 +65,106 @@
         </font>
        </property>
        <property name="text">
-        <string>Next - Right Arrow</string>
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset>
+         <normaloff>icons/right-arrow.png</normaloff>icons/right-arrow.png</iconset>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>18</width>
+         <height>18</height>
+        </size>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="SettingsButton">
-       <property name="font">
-        <font>
-         <family>Microsoft Sans Serif</family>
-         <pointsize>10</pointsize>
-         <bold>false</bold>
-        </font>
-       </property>
+      <widget class="QPushButton" name="butonLupa">
        <property name="text">
-        <string>Setari Font</string>
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset>
+         <normaloff>icons/lupa.png</normaloff>icons/lupa.png</iconset>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>18</width>
+         <height>18</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="butonRefresh">
+       <property name="text">
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset>
+         <normaloff>icons/refresh.png</normaloff>icons/refresh.png</iconset>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>18</width>
+         <height>18</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="butonCreare">
+       <property name="text">
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset>
+         <normaloff>icons/add-folder.png</normaloff>icons/add-folder.png</iconset>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>18</width>
+         <height>18</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="butonArhivare">
+       <property name="text">
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset>
+         <normaloff>icons/zip.png</normaloff>icons/zip.png</iconset>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>18</width>
+         <height>18</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="butonDezarhivare">
+       <property name="text">
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset>
+         <normaloff>icons/zip-folder.png</normaloff>icons/zip-folder.png</iconset>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>18</width>
+         <height>18</height>
+        </size>
        </property>
       </widget>
      </item>
     </layout>
-   </item>
-   <item>
-    <widget class="QSplitter" name="splitter">
-     <property name="font">
-      <font>
-       <family>Microsoft Sans Serif</family>
-       <pointsize>10</pointsize>
-       <bold>false</bold>
-      </font>
-     </property>
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <widget class="QLabel" name="label1">
-      <property name="font">
-       <font>
-        <family>Microsoft Sans Serif</family>
-        <pointsize>10</pointsize>
-        <bold>false</bold>
-       </font>
-      </property>
-      <property name="text">
-       <string>Path:</string>
-      </property>
-     </widget>
-     <widget class="QLineEdit" name="lineEdit">
-      <property name="font">
-       <font>
-        <family>Microsoft Sans Serif</family>
-        <pointsize>10</pointsize>
-        <bold>false</bold>
-       </font>
-      </property>
-     </widget>
-     <widget class="QPushButton" name="FindPathButton">
-      <property name="font">
-       <font>
-        <family>Microsoft Sans Serif</family>
-        <pointsize>10</pointsize>
-        <bold>false</bold>
-       </font>
-      </property>
-      <property name="text">
-       <string>Find</string>
-      </property>
-     </widget>
-    </widget>
    </item>
    <item>
     <widget class="QFrame" name="frame_2">
@@ -137,7 +181,7 @@
      <property name="frameShadow">
       <enum>QFrame::Raised</enum>
      </property>
-     <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="1,2,2">
+     <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="0,0">
       <property name="spacing">
        <number>1</number>
       </property>
@@ -154,67 +198,262 @@
        <number>1</number>
       </property>
       <item>
-       <widget class="QTreeView" name="PanelTree">
-        <property name="font">
-         <font>
-          <family>Microsoft Sans Serif</family>
-          <pointsize>10</pointsize>
-          <bold>false</bold>
-         </font>
-        </property>
-        <property name="verticalScrollBarPolicy">
-         <enum>Qt::ScrollBarAlwaysOn</enum>
-        </property>
-        <property name="horizontalScrollBarPolicy">
-         <enum>Qt::ScrollBarAlwaysOn</enum>
-        </property>
-        <property name="autoScroll">
-         <bool>false</bool>
-        </property>
-        <property name="wordWrap">
-         <bool>false</bool>
-        </property>
+       <widget class="QFrame" name="frameLeft">
+        <layout class="QVBoxLayout" name="verticalLayout_3">
+         <item>
+          <widget class="QFrame" name="framePathLeft">
+           <property name="frameShape">
+            <enum>QFrame::StyledPanel</enum>
+           </property>
+           <property name="frameShadow">
+            <enum>QFrame::Raised</enum>
+           </property>
+           <layout class="QHBoxLayout" name="horizontalLayout_6">
+            <item>
+             <widget class="QSplitter" name="pathsplitterleft">
+              <property name="font">
+               <font>
+                <family>Microsoft Sans Serif</family>
+                <pointsize>10</pointsize>
+                <bold>false</bold>
+               </font>
+              </property>
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <widget class="QLabel" name="LeftPathLabel">
+               <property name="font">
+                <font>
+                 <family>Microsoft Sans Serif</family>
+                 <pointsize>10</pointsize>
+                 <bold>false</bold>
+                </font>
+               </property>
+               <property name="text">
+                <string>Path:</string>
+               </property>
+              </widget>
+              <widget class="QLineEdit" name="LeftPathLine">
+               <property name="font">
+                <font>
+                 <family>Microsoft Sans Serif</family>
+                 <pointsize>10</pointsize>
+                 <bold>false</bold>
+                </font>
+               </property>
+              </widget>
+              <widget class="QPushButton" name="LeftFindPathButton">
+               <property name="font">
+                <font>
+                 <family>Microsoft Sans Serif</family>
+                 <pointsize>10</pointsize>
+                 <bold>false</bold>
+                </font>
+               </property>
+               <property name="text">
+                <string>Find</string>
+               </property>
+              </widget>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QFrame" name="frameTreesLeft">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="frameShape">
+            <enum>QFrame::StyledPanel</enum>
+           </property>
+           <property name="frameShadow">
+            <enum>QFrame::Raised</enum>
+           </property>
+           <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="2,3">
+            <item>
+             <widget class="QTreeView" name="LeftPanelTree">
+              <property name="font">
+               <font>
+                <family>Microsoft Sans Serif</family>
+                <pointsize>10</pointsize>
+                <bold>false</bold>
+               </font>
+              </property>
+              <property name="verticalScrollBarPolicy">
+               <enum>Qt::ScrollBarAlwaysOn</enum>
+              </property>
+              <property name="horizontalScrollBarPolicy">
+               <enum>Qt::ScrollBarAlwaysOn</enum>
+              </property>
+              <property name="autoScroll">
+               <bool>false</bool>
+              </property>
+              <property name="wordWrap">
+               <bool>false</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QTreeWidget" name="LeftTree">
+              <property name="font">
+               <font>
+                <family>Microsoft Sans Serif</family>
+                <pointsize>10</pointsize>
+                <bold>false</bold>
+               </font>
+              </property>
+              <property name="animated">
+               <bool>false</bool>
+              </property>
+              <attribute name="headerStretchLastSection">
+               <bool>false</bool>
+              </attribute>
+              <column>
+               <property name="text">
+                <string notr="true">1</string>
+               </property>
+              </column>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+        </layout>
        </widget>
       </item>
       <item>
-       <widget class="QTreeWidget" name="LeftTree">
-        <property name="font">
-         <font>
-          <family>Microsoft Sans Serif</family>
-          <pointsize>10</pointsize>
-          <bold>false</bold>
-         </font>
+       <widget class="QFrame" name="frameRight">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
         </property>
-        <property name="animated">
-         <bool>false</bool>
-        </property>
-        <attribute name="headerStretchLastSection">
-         <bool>false</bool>
-        </attribute>
-        <column>
-         <property name="text">
-          <string notr="true">1</string>
-         </property>
-        </column>
-       </widget>
-      </item>
-      <item>
-       <widget class="QTreeWidget" name="RightTree">
-        <property name="font">
-         <font>
-          <family>Microsoft Sans Serif</family>
-          <pointsize>10</pointsize>
-          <bold>false</bold>
-         </font>
-        </property>
-        <property name="lineWidth">
-         <number>4</number>
-        </property>
-        <column>
-         <property name="text">
-          <string notr="true">1</string>
-         </property>
-        </column>
+        <layout class="QVBoxLayout" name="verticalLayout_4" stretch="0,0">
+         <item>
+          <widget class="QFrame" name="framePathRight">
+           <property name="frameShape">
+            <enum>QFrame::StyledPanel</enum>
+           </property>
+           <property name="frameShadow">
+            <enum>QFrame::Raised</enum>
+           </property>
+           <layout class="QHBoxLayout" name="horizontalLayout_5">
+            <item>
+             <widget class="QSplitter" name="pathsplitterright">
+              <property name="font">
+               <font>
+                <family>Microsoft Sans Serif</family>
+                <pointsize>10</pointsize>
+                <bold>false</bold>
+               </font>
+              </property>
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <widget class="QLabel" name="RightPathLabel">
+               <property name="font">
+                <font>
+                 <family>Microsoft Sans Serif</family>
+                 <pointsize>10</pointsize>
+                 <bold>false</bold>
+                </font>
+               </property>
+               <property name="text">
+                <string>Path:</string>
+               </property>
+              </widget>
+              <widget class="QLineEdit" name="RightPathLine">
+               <property name="font">
+                <font>
+                 <family>Microsoft Sans Serif</family>
+                 <pointsize>10</pointsize>
+                 <bold>false</bold>
+                </font>
+               </property>
+              </widget>
+              <widget class="QPushButton" name="RightFindPathButton">
+               <property name="font">
+                <font>
+                 <family>Microsoft Sans Serif</family>
+                 <pointsize>10</pointsize>
+                 <bold>false</bold>
+                </font>
+               </property>
+               <property name="text">
+                <string>Find</string>
+               </property>
+              </widget>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QFrame" name="frameTreesRight">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="frameShape">
+            <enum>QFrame::StyledPanel</enum>
+           </property>
+           <property name="frameShadow">
+            <enum>QFrame::Raised</enum>
+           </property>
+           <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="2,3">
+            <item>
+             <widget class="QTreeView" name="RightPanelTree">
+              <property name="font">
+               <font>
+                <family>Microsoft Sans Serif</family>
+                <pointsize>10</pointsize>
+                <bold>false</bold>
+               </font>
+              </property>
+              <property name="verticalScrollBarPolicy">
+               <enum>Qt::ScrollBarAlwaysOn</enum>
+              </property>
+              <property name="horizontalScrollBarPolicy">
+               <enum>Qt::ScrollBarAlwaysOn</enum>
+              </property>
+              <property name="autoScroll">
+               <bool>false</bool>
+              </property>
+              <property name="wordWrap">
+               <bool>false</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QTreeWidget" name="RightTree">
+              <property name="font">
+               <font>
+                <family>Microsoft Sans Serif</family>
+                <pointsize>10</pointsize>
+                <bold>false</bold>
+               </font>
+              </property>
+              <property name="lineWidth">
+               <number>4</number>
+              </property>
+              <column>
+               <property name="text">
+                <string notr="true">1</string>
+               </property>
+              </column>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+        </layout>
        </widget>
       </item>
      </layout>
