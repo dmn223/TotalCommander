@@ -50,13 +50,14 @@ class SizeInputDialog(QDialog):
         self.setFixedSize(400, 180)
         
         # Mărim textul pentru tot dialogul
+
         self.setStyleSheet("""
-            QDialog { background-color: #2d2d2d; color: white; }
+            
             QLabel { font-size: 16px; font-weight: bold; min-width: 100px; }
-            QLineEdit { font-size: 16px; padding: 5px; background-color: #1e1e1e; color: white; border: 1px solid #555; }
+            QLineEdit { font-size: 16px; padding: 5px; border: 1px solid #555; }
             QPushButton { font-size: 14px; padding: 5px; }
         """)
-        
+
         layout = QVBoxLayout(self)
         form_layout = QtWidgets.QFormLayout()
 

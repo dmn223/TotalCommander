@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1121</width>
+    <width>1117</width>
     <height>825</height>
    </rect>
   </property>
@@ -31,38 +31,20 @@
    </property>
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout">
-     <item>
-      <widget class="QPushButton" name="BackButton">
-       <property name="font">
-        <font>
-         <family>Microsoft Sans Serif</family>
-         <pointsize>10</pointsize>
-         <bold>false</bold>
-        </font>
-       </property>
-       <property name="toolTip">
-        <string>Back</string>
-       </property>
-       <property name="toolTipDuration">
-        <number>0</number>
-       </property>
-       <property name="text">
-        <string/>
-       </property>
-       <property name="icon">
-        <iconset>
-         <normaloff>icons/left-arrow.png</normaloff>icons/left-arrow.png</iconset>
-       </property>
-       <property name="iconSize">
-        <size>
-         <width>18</width>
-         <height>18</height>
-        </size>
-       </property>
-      </widget>
-     </item>
+     <property name="sizeConstraint">
+      <enum>QLayout::SetDefaultConstraint</enum>
+     </property>
+     <property name="rightMargin">
+      <number>0</number>
+     </property>
      <item>
       <widget class="QPushButton" name="NextButton">
+       <property name="maximumSize">
+        <size>
+         <width>50</width>
+         <height>50</height>
+        </size>
+       </property>
        <property name="font">
         <font>
          <family>Microsoft Sans Serif</family>
@@ -89,7 +71,55 @@
       </widget>
      </item>
      <item>
+      <widget class="QPushButton" name="BackButton">
+       <property name="maximumSize">
+        <size>
+         <width>50</width>
+         <height>50</height>
+        </size>
+       </property>
+       <property name="baseSize">
+        <size>
+         <width>100</width>
+         <height>100</height>
+        </size>
+       </property>
+       <property name="font">
+        <font>
+         <family>Microsoft Sans Serif</family>
+         <pointsize>10</pointsize>
+         <bold>false</bold>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Back</string>
+       </property>
+       <property name="toolTipDuration">
+        <number>-1</number>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset>
+         <normaloff>icons/left-arrow.png</normaloff>icons/left-arrow.png</iconset>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>18</width>
+         <height>18</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QPushButton" name="butonLupa">
+       <property name="maximumSize">
+        <size>
+         <width>50</width>
+         <height>50</height>
+        </size>
+       </property>
        <property name="toolTip">
         <string>Find</string>
        </property>
@@ -110,6 +140,12 @@
      </item>
      <item>
       <widget class="QPushButton" name="butonRefresh">
+       <property name="maximumSize">
+        <size>
+         <width>50</width>
+         <height>50</height>
+        </size>
+       </property>
        <property name="toolTip">
         <string>Refresh</string>
        </property>
@@ -130,6 +166,12 @@
      </item>
      <item>
       <widget class="QPushButton" name="butonCreare">
+       <property name="maximumSize">
+        <size>
+         <width>50</width>
+         <height>50</height>
+        </size>
+       </property>
        <property name="toolTip">
         <string>New Folder</string>
        </property>
@@ -150,6 +192,12 @@
      </item>
      <item>
       <widget class="QPushButton" name="butonArhivare">
+       <property name="maximumSize">
+        <size>
+         <width>50</width>
+         <height>50</height>
+        </size>
+       </property>
        <property name="toolTip">
         <string>Zip</string>
        </property>
@@ -170,6 +218,12 @@
      </item>
      <item>
       <widget class="QPushButton" name="butonDezarhivare">
+       <property name="maximumSize">
+        <size>
+         <width>50</width>
+         <height>50</height>
+        </size>
+       </property>
        <property name="toolTip">
         <string>UnZip</string>
        </property>
@@ -185,6 +239,16 @@
          <width>18</width>
          <height>18</height>
         </size>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QFrame" name="frame_3">
+       <property name="frameShape">
+        <enum>QFrame::StyledPanel</enum>
+       </property>
+       <property name="frameShadow">
+        <enum>QFrame::Raised</enum>
        </property>
       </widget>
      </item>

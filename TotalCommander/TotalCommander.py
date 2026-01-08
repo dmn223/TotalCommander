@@ -885,7 +885,7 @@ class MyApp(QDialog):
         selected_item = active_tree.currentItem()
 
         if not selected_item:
-            QMessageBox.warning(self, "Atentie", "Selectati un element pentru arhivare.")
+            QMessageBox.warning(self, "Atentie", "Selectati un element pentru dezarhivare.")
             return
 
         path_str = selected_item.data(0, QtCore.Qt.ItemDataRole.UserRole)
