@@ -40,6 +40,12 @@
          <bold>false</bold>
         </font>
        </property>
+       <property name="toolTip">
+        <string>Back</string>
+       </property>
+       <property name="toolTipDuration">
+        <number>0</number>
+       </property>
        <property name="text">
         <string/>
        </property>
@@ -64,6 +70,9 @@
          <bold>false</bold>
         </font>
        </property>
+       <property name="toolTip">
+        <string>Next</string>
+       </property>
        <property name="text">
         <string/>
        </property>
@@ -81,6 +90,9 @@
      </item>
      <item>
       <widget class="QPushButton" name="butonLupa">
+       <property name="toolTip">
+        <string>Find</string>
+       </property>
        <property name="text">
         <string/>
        </property>
@@ -98,6 +110,9 @@
      </item>
      <item>
       <widget class="QPushButton" name="butonRefresh">
+       <property name="toolTip">
+        <string>Refresh</string>
+       </property>
        <property name="text">
         <string/>
        </property>
@@ -115,6 +130,9 @@
      </item>
      <item>
       <widget class="QPushButton" name="butonCreare">
+       <property name="toolTip">
+        <string>New Folder</string>
+       </property>
        <property name="text">
         <string/>
        </property>
@@ -132,6 +150,9 @@
      </item>
      <item>
       <widget class="QPushButton" name="butonArhivare">
+       <property name="toolTip">
+        <string>Zip</string>
+       </property>
        <property name="text">
         <string/>
        </property>
@@ -149,6 +170,9 @@
      </item>
      <item>
       <widget class="QPushButton" name="butonDezarhivare">
+       <property name="toolTip">
+        <string>UnZip</string>
+       </property>
        <property name="text">
         <string/>
        </property>
