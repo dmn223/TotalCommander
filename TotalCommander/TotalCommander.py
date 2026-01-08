@@ -1130,13 +1130,14 @@ class MyApp(QDialog):
                 QMessageBox.critical(self, "Eroare de I/O", 
                                      f"Stergerea a esuat. Eroare: {e}")
     def SortColumns(self):
-        self.LeftTree.setSortingEnabled(True)
-        self.RightTree.setSortingEnabled(True)
+        self.LeftTree.setSortingEnabled(False)
+        self.RightTree.setSortingEnabled(False)
         
         self.LeftTree.sortByColumn(0, QtCore.Qt.SortOrder.AscendingOrder)
         self.RightTree.sortByColumn(0, QtCore.Qt.SortOrder.AscendingOrder)
 
     def setupTree(self, tree_widget: QTreeWidget, path: Path):
+        tree_widget.setSortingEnabled(False) # Dezactivăm sortarea în timp ce adăugăm
         tree_widget.clear()
         parent_path = path.parent.resolve()
 
@@ -1150,21 +1151,31 @@ class MyApp(QDialog):
         try:
             contents = list_directory_contents(str(path))
         except Exception as e:
-            print(f"Eroare la citirea directorului {path}: {e}")
+            print(f"Eroare: {e}")
             return
 
         for item in contents:
             name_str = item['name']
-            size_str = f"{item['size']:,}" if item['is_file'] else ''
+            # numărul pur
+            size_raw = item['size'] if item['is_file'] else -1
+            # string-ul cu virgule DOAR pentru afisare
+            size_display = f"{size_raw:,}" if item['is_file'] else ""
+        
             ext = str(item['ext']) if item['is_file'] else 'DIR'
             date_mod = str(item['modify_date'])[:16]
 
-            tree_item = QTreeWidgetItem(tree_widget, [name_str, size_str, ext, date_mod])
-            tree_item.setData(0, QtCore.Qt.ItemDataRole.UserRole, item['path']) 
+            # Cream item-ul cu textul formatat
+            tree_item = PersistentTopItem(tree_widget, [name_str, size_display, ext, date_mod])
+        
+            # Salvam PATH-ul pe coloana 0
+            tree_item.setData(0, QtCore.Qt.ItemDataRole.UserRole, item['path'])     
+            tree_item.setData(1, QtCore.Qt.ItemDataRole.UserRole, size_raw)
 
             file_info = QFileInfo(item['path'])
-            icon = icon_provider.icon(file_info)
-            tree_item.setIcon(0, icon)
+            tree_item.setIcon(0, icon_provider.icon(file_info))
+
+        tree_widget.setSortingEnabled(True)
+        tree_widget.sortByColumn(0, QtCore.Qt.SortOrder.AscendingOrder)
 
     def setupPanel(self):
         self.model = QFileSystemModel()

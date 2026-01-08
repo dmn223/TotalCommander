@@ -24,7 +24,20 @@ class PersistentTopItem(QTreeWidgetItem):
             return True if self.treeWidget().header().sortIndicatorOrder() == QtCore.Qt.SortOrder.AscendingOrder else False
         if other.text(0) == "..":
             return False if self.treeWidget().header().sortIndicatorOrder() == QtCore.Qt.SortOrder.AscendingOrder else True  
-        return super().__lt__(other)
+
+        if column == 1:
+            data1 = self.data(1, QtCore.Qt.ItemDataRole.UserRole)
+            data2 = other.data(1, QtCore.Qt.ItemDataRole.UserRole)
+            def clean_size(val):
+                if val is None or val == "": return -1
+                if isinstance(val, str):
+                    return int(val.replace(",", "").replace(".", ""))
+                return int(val)
+
+            return clean_size(data1) < clean_size(data2)
+
+        return self.text(column).lower() < other.text(column).lower()
+
 class SettingsMenu(QDialog):
     def __init__(self, parent_window):
         super().__init__(parent_window)
