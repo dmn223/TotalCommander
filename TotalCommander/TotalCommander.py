@@ -19,6 +19,7 @@ import webbrowser
 from SearchDialog import SearchDialog
 from Settings import SettingsMenu
 from Settings import SizeInputDialog
+from Settings import PersistentTopItem
 def list_directory_contents(directory_path: str) -> list[dict]:
     path = Path(directory_path)
     if not path.is_dir():
@@ -1134,7 +1135,7 @@ class MyApp(QDialog):
         
         self.LeftTree.sortByColumn(0, QtCore.Qt.SortOrder.AscendingOrder)
         self.RightTree.sortByColumn(0, QtCore.Qt.SortOrder.AscendingOrder)
-    
+
     def setupTree(self, tree_widget: QTreeWidget, path: Path):
         tree_widget.clear()
         parent_path = path.parent.resolve()
@@ -1142,7 +1143,7 @@ class MyApp(QDialog):
         icon_provider = QFileIconProvider()
 
         if parent_path != path:
-            item_parent = QTreeWidgetItem(tree_widget, ["..", "", "DIR", ""])
+            item_parent = PersistentTopItem(tree_widget, ["..", "", "DIR", ""])
             item_parent.setData(0, QtCore.Qt.ItemDataRole.UserRole, str(parent_path))
             item_parent.setIcon(0, icon_provider.icon(QFileIconProvider.IconType.Folder))
 

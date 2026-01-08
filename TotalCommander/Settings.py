@@ -16,7 +16,15 @@ import datetime
 from PyQt6.QtCore import Qt
 import PyQt6.QtCore as QtCore
 import webbrowser
+class PersistentTopItem(QTreeWidgetItem):
+    def __lt__(self, other):
+        column = self.treeWidget().sortColumn()
 
+        if self.text(0) == "..":
+            return True if self.treeWidget().header().sortIndicatorOrder() == QtCore.Qt.SortOrder.AscendingOrder else False
+        if other.text(0) == "..":
+            return False if self.treeWidget().header().sortIndicatorOrder() == QtCore.Qt.SortOrder.AscendingOrder else True  
+        return super().__lt__(other)
 class SettingsMenu(QDialog):
     def __init__(self, parent_window):
         super().__init__(parent_window)
