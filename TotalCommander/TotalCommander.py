@@ -7,7 +7,6 @@ from PyQt6.uic import loadUi
 from pathlib import Path
 from PyQt6.QtCore import QFileInfo, QDir
 from PyQt6.QtWidgets import QTreeView, QVBoxLayout, QHeaderView, QMenuBar, QMenu, QFrame
-from PyQt6.QtWidgets import QTreeView, QVBoxLayout, QHeaderView, QMenuBar, QMenu
 from PyQt6.QtGui import QFileSystemModel, QKeySequence, QShortcut, QAction, QPalette, QColor
 import os
 import ctypes
@@ -107,8 +106,8 @@ class MyApp(QDialog):
         self.RightTree.setDragDropMode(QtWidgets.QAbstractItemView.DragDropMode.DragDrop)
         self.RightTree.setDefaultDropAction(QtCore.Qt.DropAction.MoveAction)
 
-        self.LeftTree.dropEvent = lambda event: self.handle_drop(event, self.LeftTree)
-        self.RightTree.dropEvent = lambda event: self.handle_drop(event, self.RightTree)
+        self.LeftTree.dropEvent = lambda event: self.handle_drop(event, self.getActivePanel(), self.LeftTree)
+        self.RightTree.dropEvent = lambda event: self.handle_drop(event, self.getActivePanel(), self.RightTree)
 
         # Suprascriem dragEnterEvent pentru a accepta acțiunea
         self.LeftTree.dragEnterEvent = lambda event: event.accept()
@@ -411,7 +410,7 @@ class MyApp(QDialog):
         if 'Setari' in text: self.openSettings()
     
     def eventFilter(self, source, event):
-        # Detectare focus (codul tau existent) 
+        # Detectare focus 
         if event.type() == QtCore.QEvent.Type.FocusIn: #pentru tree uri
             if source == self.LeftTree:
                 self.panel_activated = 'Left'
@@ -554,12 +553,9 @@ class MyApp(QDialog):
     def apply_light_theme(self):
         self.is_dark = False
     
-        # 1. FORCE the Window Pane (the gray areas) to reset to System Light
-        # Using 'standardPalette' tells the OS to take back control
         QApplication.setPalette(QApplication.style().standardPalette())
 
-        # 2. FORCE the Stylesheet to Light Mode
-        # We define background-colors explicitly so no 'Dark' remnants stay in the trees or panes
+        # 2. 
         self.setStyleSheet("""
             QDialog, QWidget { 
                 background-color: #f0f0f0; 
@@ -885,7 +881,7 @@ class MyApp(QDialog):
         selected_item = active_tree.currentItem()
 
         if not selected_item:
-            QMessageBox.warning(self, "Atentie", "Selectati un element pentru arhivare.")
+            QMessageBox.warning(self, "Atentie", "Selectati un element pentru dezarhivare.")
             return
 
         path_str = selected_item.data(0, QtCore.Qt.ItemDataRole.UserRole)
@@ -1269,54 +1265,93 @@ class MyApp(QDialog):
                 tree.scrollToItem(item)
                 break
 
-    def handle_drop(self, event, target_tree):
-        # Verifică dacă datele conțin referințe la fișiere (sau itemi de listă)
-        if event.mimeData().hasFormat('application/x-qabstractitemmodeldatalist'):
-            source_tree = event.source()
-            if source_tree == target_tree:
-                event.ignore() # Nu facem nimic dacă e același panou
-                return
+    def handle_drop(self, event, source_tree, target_tree):
+        # Verify mime format
+        if not event.mimeData().hasFormat('application/x-qabstractitemmodeldatalist'):
+            return
 
-            # Obține calea sursă și calea destinație
-            selected_items = source_tree.selectedItems()
-            if not selected_items:
-                return
+        # Get the actual source widget that started the drag
+        source_tree = event.source()
+        if source_tree is None:
+            return
 
-            # Determinăm folderul destinație (unde s-a făcut drop)
-            prefix_target = "Left" if target_tree == self.LeftTree else "Right"
-            prefix_source = "Right" if target_tree == self.LeftTree else "Left"
-        
-            target_dir = getattr(self, f'currentPath{prefix_target}')
-            source_dir = getattr(self, f'currentPath{prefix_source}')
+        selected_items = source_tree.selectedItems()
+        if not selected_items:
+            return
 
-            # Verificăm dacă tasta CTRL este apăsată (Daca da, in loc de mutare, copiem)
-            is_ctrl_pressed = event.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier
+        # Resolve the item under the mouse in the target tree (exact drop target)
+        try:
+            # PyQt6: position() -> QPointF
+            pos = event.position().toPoint()
+        except Exception:
+            # fallback for other versions
+            pos = event.pos()
 
-            for item in selected_items:
-                file_name = item.text(0)
-                src_path = source_dir / file_name
-                dst_path = target_dir / file_name
+        target_item = target_tree.itemAt(pos)
 
-                try:
-                    if is_ctrl_pressed:
-                        # LOGICA DE COPIERE
-                        if src_path.is_dir():
-                            shutil.copytree(src_path, dst_path, dirs_exist_ok=True)
-                        else:
-                            shutil.copy2(src_path, dst_path)
-                        print(f"Copiat: {file_name}")
+        # Determine destination directory from the item under cursor (or from currentPath if none)
+        if target_item:
+            target_item_path_str = target_item.data(0, QtCore.Qt.ItemDataRole.UserRole)
+            try:
+                if target_item_path_str:
+                    targ_path = Path(target_item_path_str)
+                    # If the target item is a directory, drop into it; otherwise drop into its parent
+                    drop_dir = targ_path if targ_path.is_dir() else targ_path.parent
+                else:
+                    # no stored path -> fallback to panel current path
+                    prefix_target = "Left" if target_tree is self.LeftTree else "Right"
+                    drop_dir = getattr(self, f'currentPath{prefix_target}')
+            except Exception:
+                prefix_target = "Left" if target_tree is self.LeftTree else "Right"
+                drop_dir = getattr(self, f'currentPath{prefix_target}')
+        else:
+            # No item under cursor -> drop into the panel's current directory
+            prefix_target = "Left" if target_tree is self.LeftTree else "Right"
+            drop_dir = getattr(self, f'currentPath{prefix_target}')
+
+        # Determine source directory / paths using the selected items' stored UserRole (full paths)
+        prefix_source = "Left" if source_tree is self.LeftTree else "Right"
+        # Note: we still keep the panel currentPath for any needed comparisons, but use the item's stored path as source.
+        for item in selected_items:
+            file_path_str = item.data(0, QtCore.Qt.ItemDataRole.UserRole)
+            if not file_path_str:
+                continue
+            src_path = Path(file_path_str)
+            dst_path = drop_dir / src_path.name
+
+            # Prevent dropping a folder into itself or its children
+            try:
+                if src_path == dst_path or dst_path.is_relative_to(src_path):
+                    QMessageBox.warning(self, "Eroare", "Nu puteti muta/copiere un director in el insusi sau intr-un subdirector al sau.")
+                    event.ignore()
+                    return
+            except Exception:
+                # is_relative_to might raise on unusual paths; ignore and continue but be conservative
+                pass
+
+            # Check overwrite and perform copy/move
+            try:
+                is_ctrl_pressed = bool(event.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier)
+
+                if is_ctrl_pressed:
+                    # Copy
+                    if src_path.is_dir():
+                        shutil.copytree(src_path, dst_path, dirs_exist_ok=True)
                     else:
-                        # LOGICA DE MUTARE (default)
-                        shutil.move(str(src_path), str(dst_path))
-                        print(f"Mutat: {file_name}")
+                        shutil.copy2(src_path, dst_path)
+                    print(f"Copiat: {src_path} -> {dst_path}")
+                else:
+                    # Move
+                    shutil.move(str(src_path), str(dst_path))
+                    print(f"Mutat: {src_path} -> {dst_path}")
 
-                except Exception as e:
-                    print(f"Eroare la procesarea fisierului {file_name}: {e}")
-                    QMessageBox.warning(self, "Eroare", f"Nu s-a putut procesa {file_name}: {e}")
+            except Exception as e:
+                print(f"Eroare la procesarea elementului {src_path}: {e}")
+                QMessageBox.warning(self, "Eroare", f"Nu s-a putut procesa {src_path.name}: {e}")
 
-            # Refresh la ambele panouri
-            self.RefreshPanels()
-            event.accept()
+        # Refresh both panels and accept the event
+        self.RefreshPanels()
+        event.accept()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
