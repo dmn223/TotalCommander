@@ -407,10 +407,6 @@ class MyApp(QDialog):
         self.style_active_panel(self.LeftTree)
 
         self.refresh_memory_labels()
-        self.LeftTree.itemClicked.connect(lambda: self.update_disk_info(self.currentPathLeft, self.LeftLabel))
-        self.RightTree.itemClicked.connect(lambda: self.update_disk_info(self.currentPathRight, self.RightLabel))
-        self.LeftTree.itemSelectionChanged.connect(lambda: self.update_disk_info(self.currentPathLeft, self.LeftLabel))
-        self.RightTree.itemSelectionChanged.connect(lambda: self.update_disk_info(self.currentPathRight, self.RightLabel))
 
         self.LeftPathLine.returnPressed.connect(self.NavigateToPathLeft)
         self.LeftFindPathButton.clicked.connect(self.NavigateToPathLeft)
@@ -1270,6 +1266,7 @@ class MyApp(QDialog):
             setattr(self, f'currentPath{prefix}', Path(path))
             self.setupTree(active_tree, Path(path))
             self.LeftPathLine.setText(path)
+            self.update_disk_info(path, self.LeftLabel)
 
     def RightPanelClick(self, index):
         path = self.model.filePath(index)
@@ -1279,6 +1276,7 @@ class MyApp(QDialog):
             setattr(self, f'currentPath{prefix}', Path(path))
             self.setupTree(active_tree, Path(path))
             self.RightPathLine.setText(path)
+            self.update_disk_info(path, self.LeftLabel)
 
     def OpenSearch(self):
         active_tree = self.getActivePanel()
