@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1117</width>
+    <width>1417</width>
     <height>825</height>
    </rect>
   </property>
@@ -348,6 +348,16 @@
           </widget>
          </item>
          <item>
+          <widget class="QLabel" name="LeftLabel">
+           <property name="text">
+            <string>TextLabel</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
           <widget class="QFrame" name="frameTreesLeft">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
@@ -421,7 +431,7 @@
           <verstretch>0</verstretch>
          </sizepolicy>
         </property>
-        <layout class="QVBoxLayout" name="verticalLayout_4" stretch="0,0">
+        <layout class="QVBoxLayout" name="verticalLayout_4" stretch="0,0,0">
          <item>
           <widget class="QFrame" name="framePathRight">
            <property name="frameShape">
@@ -479,6 +489,16 @@
              </widget>
             </item>
            </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="RightLabel">
+           <property name="text">
+            <string>TextLabel</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
           </widget>
          </item>
          <item>

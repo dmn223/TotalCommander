@@ -2,13 +2,14 @@ from faulthandler import is_enabled
 import sys
 from tkinter import Button
 from PyQt6 import QtGui, QtCore, QtWidgets
-from PyQt6.QtWidgets import QApplication, QInputDialog, QLabel, QPushButton, QSpinBox, QFileIconProvider, QWidget, QTreeWidgetItem, QTreeWidget, QDialog, QMessageBox, QMenu, QLineEdit, QFontDialog
+from PyQt6.QtWidgets import QApplication, QInputDialog, QLabel, QPushButton, QSpinBox, QFileIconProvider, QWidget, QTreeWidgetItem, QTreeWidget, QDialog, QMessageBox, QMenu, QLineEdit, QFontDialog, QLabel
 from PyQt6.uic import loadUi
 from pathlib import Path
 from PyQt6.QtCore import QFileInfo, QDir
 from PyQt6.QtWidgets import QTreeView, QVBoxLayout, QHeaderView, QMenuBar, QMenu, QFrame
 from PyQt6.QtGui import QFileSystemModel, QKeySequence, QShortcut, QAction, QPalette, QColor
 import os
+import psutil
 import ctypes
 import shutil
 import zipfile
@@ -76,6 +77,9 @@ class MyApp(QDialog):
     frameTreesLeft : QFrame
     frameTreesRight : QFrame
 
+    LeftLabel : QLabel
+    RightLabel : QLabel
+
     currentPathLeft: Path
     currentPathRight: Path
     panel_activated: str
@@ -84,6 +88,7 @@ class MyApp(QDialog):
     def __init__(self):
         super().__init__()
         loadUi('Display.ui', self)
+        
         self.all_panels = [self.LeftTree, self.RightTree, self.LeftPanelTree, self.RightPanelTree]
         self.setWindowState(QtCore.Qt.WindowState.WindowMaximized)
         self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowType.WindowMinimizeButtonHint | QtCore.Qt.WindowType.WindowMaximizeButtonHint) # creaza butonul de full screen
@@ -169,8 +174,25 @@ class MyApp(QDialog):
 
         # Săgeată Dreapta (Next)
         QShortcut(QKeySequence(Qt.Key.Key_Right), self).activated.connect(self.GoNext)
-
+        
         self.auto_detect_theme()
+    def update_disk_info(self, path, label_to_update):
+        try:
+            usage = psutil.disk_usage(str(path))
+        
+            free_k = usage.free // 1024
+            total_k = usage.total // 1024
+        
+            f_free = f"{free_k:,}"
+            f_total = f"{total_k:,}"
+        
+            text = f"[_none_] {f_free} k of {f_total} k free"
+
+            label_to_update.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            label_to_update.setText(text)
+        
+        except Exception as e:
+            print(f"Eroare la citirea adresei {path}: {e}")
 
     def openSettings(self):
         font, ok = QFontDialog.getFont(self.font(), self, "Selectează Fontul")
@@ -187,7 +209,10 @@ class MyApp(QDialog):
             self.RightTree.header().setFont(font)
             self.LeftPanelTree.header().setFont(font)
             self.RightPanelTree.header().setFont(font)
-    
+        
+            self.LeftLabel.setFont(font)
+            self.RightLabel.setFont(font)
+
             for btn in self.buttons:
                 btn.setFont(font)
 
@@ -380,6 +405,12 @@ class MyApp(QDialog):
         self.butonDezarhivare.clicked.connect(self.UnzipPath)
 
         self.style_active_panel(self.LeftTree)
+
+        self.refresh_memory_labels()
+        self.LeftTree.itemClicked.connect(lambda: self.update_disk_info(self.currentPathLeft, self.LeftLabel))
+        self.RightTree.itemClicked.connect(lambda: self.update_disk_info(self.currentPathRight, self.RightLabel))
+        self.LeftTree.itemSelectionChanged.connect(lambda: self.update_disk_info(self.currentPathLeft, self.LeftLabel))
+        self.RightTree.itemSelectionChanged.connect(lambda: self.update_disk_info(self.currentPathRight, self.RightLabel))
 
         self.LeftPathLine.returnPressed.connect(self.NavigateToPathLeft)
         self.LeftFindPathButton.clicked.connect(self.NavigateToPathLeft)
@@ -851,6 +882,7 @@ class MyApp(QDialog):
                     shutil.copytree(source_path, destination_path, dirs_exist_ok=True)
                 else:
                     shutil.copy2(source_path, destination_path)
+                self.refresh_memory_labels()
                 message = f"Elementul '{source_path.name}' a fost copiat in:\n{destination_dir}"
                 
             elif operation == 'Cut':
@@ -861,6 +893,7 @@ class MyApp(QDialog):
                 # Dupa mutare, sterge starea clipboard-ului
                 self.clipboard_path = None
                 self.clipboard_operation = ''
+                self.refresh_memory_labels()
                 
             else:
                 QMessageBox.critical(self, "Eroare", "Operatie clipboard necunoscuta.")
@@ -979,7 +1012,13 @@ class MyApp(QDialog):
             self.GoNext()
         else:
             super().mousePressEvent(event)
-           
+    def refresh_memory_labels(self):
+
+        if hasattr(self, 'LeftLabel') and self.currentPathLeft:
+            self.update_disk_info(self.currentPathLeft, self.LeftLabel)
+        
+        if hasattr(self, 'RightLabel') and self.currentPathRight:
+            self.update_disk_info(self.currentPathRight, self.RightLabel)
     def OpenItem(self, item, column):
         sender_widget = self.sender()
         selected_item = item
@@ -1012,7 +1051,7 @@ class MyApp(QDialog):
                     self.setupTree(self.RightTree, selected_path)
                     self.panel_activated = 'Right'
                     self.RightPathLine.setText(str(selected_path))
-                
+                self.refresh_memory_labels()
                 self.style_active_panel(sender_widget)
 
         else:
@@ -1038,7 +1077,7 @@ class MyApp(QDialog):
                 print(f"Director nou creat: {newFilePath}")
                 
                 self.setupTree(ActiveTree, CurrentPath) 
-                
+                self.refresh_memory_labels()
             except PermissionError:
                 QMessageBox.critical(self, "Eroare de Permisiune", 
                     f"Nu aveti permisiunea de a scrie in directorul: {CurrentPath}")
@@ -1065,6 +1104,7 @@ class MyApp(QDialog):
             print(f"Inapoi la: {new_path}")
         else:
             print("Nu exista istoric anterior.")
+        self.refresh_memory_labels()
     def GoNext(self):
         active_tree, prefix = self.getActivePanel()
         current_path_attr = 'currentPath' + prefix
@@ -1082,8 +1122,10 @@ class MyApp(QDialog):
             self.setupTree(active_tree, new_path)
             self.LeftPathLine.setText(str(new_path))
             print(f"Inainte la: {new_path}")
+            
         else:
             print("Nu exista istoric ulterior.")
+        self.refresh_memory_labels()
 
     def DelFile(self):
         
@@ -1120,7 +1162,7 @@ class MyApp(QDialog):
                     os.remove(selected_path_str)
                 
                 print(f"Sters cu succes: {selected_path_str}")
-                
+                self.refresh_memory_labels()
                 self.setupTree(active_tree, current_path) 
                 
             except PermissionError:

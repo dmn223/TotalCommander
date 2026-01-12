@@ -79,6 +79,7 @@ class SearchDialog(QDialog):
 
     def __init__(self, start_path, parent=None):
         super().__init__(parent)
+        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowType.WindowMinimizeButtonHint | QtCore.Qt.WindowType.WindowMaximizeButtonHint)
         self.setWindowTitle("Căutare Avansată")
         self.start_path = start_path # The path passed from main window
         self.setMinimumSize(500, 500)
