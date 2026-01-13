@@ -382,7 +382,6 @@ class MyApp(QDialog):
         optionsMenu.addAction(self.messageToggleAction)
 
         # Add the menu bar to your main layout
-        # Assuming your .ui file has a main QVBoxLayout named 'verticalLayout'
         self.layout().setMenuBar(self.menuBar)
 
     def ChangeSize(self):
@@ -454,6 +453,10 @@ class MyApp(QDialog):
         self.RightTree.installEventFilter(self)
         self.LeftPathLine.installEventFilter(self)
         self.RightPathLine.installEventFilter(self)
+        self.LeftPanelTree.installEventFilter(self)
+        self.RightPanelTree.installEventFilter(self)
+        self.LeftPanelTree.viewport().installEventFilter(self)
+        self.RightPanelTree.viewport().installEventFilter(self)
 
         self.LeftTree.viewport().installEventFilter(self)
         self.RightTree.viewport().installEventFilter(self)
@@ -567,25 +570,46 @@ class MyApp(QDialog):
                 self.style_active_panel(self.RightPanelTree)
 
         if event.type() == QtCore.QEvent.Type.KeyPress:
+            # --- Logica pentru Tasta ENTER ---
             if event.key() in [Qt.Key.Key_Return, Qt.Key.Key_Enter]:
-                # Verificăm sursa și trimitem widget-ul manual
-                if source is self.LeftTree or source is self.LeftTree.viewport():
-                    item = self.LeftTree.currentItem()
+                # Dacă suntem în listele principale de fișiere
+                if source in [self.LeftTree, self.LeftTree.viewport(), self.RightTree, self.RightTree.viewport()]:
+                    tree = self.LeftTree if source in [self.LeftTree, self.LeftTree.viewport()] else self.RightTree
+                    item = tree.currentItem()
                     if item:
-                        self.OpenItem(item, 0, manual_widget=self.LeftTree)
+                        self.OpenItem(item, 0, manual_widget=tree)
                     return True
-                elif source is self.RightTree or source is self.RightTree.viewport():
-                    item = self.RightTree.currentItem()
-                    if item:
-                        self.OpenItem(item, 0, manual_widget=self.RightTree)
+                
+                # NOU: Dacă suntem în panourile laterale (TreeViews)
+                elif source in [self.LeftPanelTree, self.LeftPanelTree.viewport(), self.RightPanelTree, self.RightPanelTree.viewport()]:
+                    tree = self.LeftPanelTree if "Left" in source.objectName() else self.RightPanelTree
+                    idx = tree.currentIndex()
+                    if idx.isValid():
+                        # Expandează/colapsează folderul și actualizează lista principală
+                        tree.setExpanded(idx, not tree.isExpanded(idx))
+                        if tree == self.LeftPanelTree: self.LeftPanelClick(idx)
+                        else: self.RightPanelClick(idx)
                     return True
 
-            # Backspace - mergi inapoi
+            # --- Logica pentru Tasta BACKSPACE ---
             if event.key() == Qt.Key.Key_Backspace:
-                if source is self.LeftTree or source is self.LeftTree.viewport():
+                # În listele principale, merge înapoi în istoric
+                if source in [self.LeftTree, self.LeftTree.viewport(), self.RightTree, self.RightTree.viewport()]:
                     self.GoBack()
-                elif source is self.RightTree or source is self.RightTree.viewport():
-                    self.GoBack()
+                    return True
+                
+                # NOU: În panourile laterale, urcă la folderul părinte
+                elif source in [self.LeftPanelTree, self.LeftPanelTree.viewport(), self.RightPanelTree, self.RightPanelTree.viewport()]:
+                    tree = self.LeftPanelTree if "Left" in source.objectName() else self.RightPanelTree
+                    idx = tree.currentIndex()
+                    parent_idx = idx.parent()
+                    if parent_idx.isValid():
+                        tree.setCurrentIndex(parent_idx)
+                        tree.setExpanded(idx, False) # Închide folderul curent când urcă
+                        # Actualizează vizualizarea principală pentru noul folder părinte
+                        if tree == self.LeftPanelTree: self.LeftPanelClick(parent_idx)
+                        else: self.RightPanelClick(parent_idx)
+                    return True
 
         if event.type() == QtCore.QEvent.Type.MouseButtonPress:
             if source in [self.LeftTree, self.LeftTree.viewport(), self.RightTree, self.RightTree.viewport(), self.LeftPanelTree, self.LeftPanelTree.viewport(), self.RightPanelTree, self.RightPanelTree.viewport()]:
@@ -1019,6 +1043,13 @@ class MyApp(QDialog):
         self.file_worker.start()
 
     def on_operation_complete(self, message):
+        # 1. Verificăm dacă utilizatorul a anulat operațiunea (prin butonul Anulează sau prin X-ul ferestrei)
+        if hasattr(self, 'pd') and self.pd.wasCanceled():
+            # Dacă a fost anulat, închidem worker-ul și reîmprospătăm panourile fără a mai afișa mesajul final
+            self.RefreshPanels()
+            self.refresh_memory_labels()
+            return
+
         if hasattr(self, 'pd'): self.pd.close() 
         self.RefreshPanels()
         self.refresh_memory_labels()
@@ -1026,6 +1057,7 @@ class MyApp(QDialog):
         # Folosim current_active_op pentru mesaj
         op_name = "Mutarea" if self.current_active_op == 'Cut' else "Copierea"
 
+        # Mesajul de succes se afișează doar dacă setarea este activă și operațiunea NU a fost anulată
         if SHOW_EXTRA_MESSAGES:
             QMessageBox.information(self, "Operațiune Finalizată", f"{op_name} s-a încheiat.\n{message}")
     
@@ -1295,13 +1327,12 @@ class MyApp(QDialog):
                         os.remove(path_str)
                 except Exception as e:
                     errors.append(f"{item.text(0)}: {e}")
-
-        deleted_count = len(valid_items)
-        if deleted_count > 0 and SHOW_EXTRA_MESSAGES:
-                # Mesaj specific pentru numărul de fișiere eliminate
-                QMessageBox.information(self, "Succes", f"{deleted_count} elemente au fost sterse.")
-        if errors:
-            QMessageBox.warning(self, "Erori", f"Nu s-au putut șterge {len(errors)} elemente.")
+            deleted_count = len(valid_items)
+            if deleted_count > 0 and SHOW_EXTRA_MESSAGES:
+                    # Mesaj specific pentru numărul de fișiere eliminate
+                    QMessageBox.information(self, "Succes", f"{deleted_count} elemente au fost sterse.")
+            if errors:
+                QMessageBox.warning(self, "Erori", f"Nu s-au putut șterge {len(errors)} elemente.")
             
         self.RefreshPanels()
         self.refresh_memory_labels()
@@ -1414,7 +1445,6 @@ class MyApp(QDialog):
         self.LeftPanelTree.clicked.connect(self.LeftPanelClick)
         self.RightPanelTree.clicked.connect(self.RightPanelClick)
 
-
     def LeftPanelClick(self, index):
         path = self.model.filePath(index)
         if os.path.isdir(path):
@@ -1456,7 +1486,7 @@ class MyApp(QDialog):
         setattr(self, f'currentPath{prefix}', Path(folder_path))
     
         # 2. Update the Path input bar (Changed 'Path' to 'Find')
-        path_line_edit = getattr(self, f'{prefix}FindPathButton') 
+        path_line_edit = getattr(self, f'{prefix}PathLine') 
         path_line_edit.setText(folder_path)
     
         # 3. Refresh the tree widget
