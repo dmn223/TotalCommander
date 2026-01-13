@@ -1,16 +1,4 @@
-﻿from PyQt6 import QtGui, QtCore, QtWidgets
-from PyQt6.QtWidgets import QApplication, QInputDialog, QLabel, QPushButton, QSpinBox, QFileIconProvider, QWidget, QTreeWidgetItem, QTreeWidget, QDialog, QMessageBox, QMenu, QLineEdit, QFontDialog
-from PyQt6.uic import loadUi
-from pathlib import Path
-from PyQt6.QtCore import QFileInfo, QDir, QThread, pyqtSignal
-from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, 
-                             QLabel, QPushButton, QSpinBox, QListWidgetItem, 
-                             QFileDialog, QMessageBox, QComboBox, QGridLayout,
-                             QRadioButton, QCheckBox)
-from PyQt6.QtGui import QFileSystemModel, QKeySequence, QShortcut, QAction, QPalette, QColor
-import os
-import ctypes
-import shutil
+﻿from CommonImports import *
 
 class SearchWorker(QThread):
     # Signals to send data back to the UI safely

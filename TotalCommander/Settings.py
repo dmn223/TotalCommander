@@ -1,42 +1,4 @@
-﻿from faulthandler import is_enabled
-import sys
-from tkinter import Button
-from PyQt6 import QtGui, QtCore, QtWidgets
-from PyQt6.QtWidgets import QApplication, QInputDialog, QLabel, QPushButton, QSpinBox, QFileIconProvider, QWidget, QTreeWidgetItem, QTreeWidget, QDialog, QMessageBox, QMenu, QLineEdit, QFontDialog
-from PyQt6.uic import loadUi
-from pathlib import Path
-from PyQt6.QtCore import QFileInfo, QDir
-from PyQt6.QtWidgets import QTreeView, QVBoxLayout, QHeaderView, QMenuBar, QMenu
-from PyQt6.QtGui import QFileSystemModel, QKeySequence, QShortcut, QAction, QPalette, QColor
-import os
-import ctypes
-import shutil
-import zipfile
-import datetime
-from PyQt6.QtCore import Qt
-import PyQt6.QtCore as QtCore
-import webbrowser
-class PersistentTopItem(QTreeWidgetItem):
-    def __lt__(self, other):
-        column = self.treeWidget().sortColumn()
-
-        if self.text(0) == "..":
-            return True if self.treeWidget().header().sortIndicatorOrder() == QtCore.Qt.SortOrder.AscendingOrder else False
-        if other.text(0) == "..":
-            return False if self.treeWidget().header().sortIndicatorOrder() == QtCore.Qt.SortOrder.AscendingOrder else True  
-
-        if column == 1:
-            data1 = self.data(1, QtCore.Qt.ItemDataRole.UserRole)
-            data2 = other.data(1, QtCore.Qt.ItemDataRole.UserRole)
-            def clean_size(val):
-                if val is None or val == "": return -1
-                if isinstance(val, str):
-                    return int(val.replace(",", "").replace(".", ""))
-                return int(val)
-
-            return clean_size(data1) < clean_size(data2)
-
-        return self.text(column).lower() < other.text(column).lower()
+﻿from CommonImports import *
 
 class SettingsMenu(QDialog):
     def __init__(self, parent_window):
@@ -104,3 +66,49 @@ class SizeInputDialog(QDialog):
 
     def get_data(self):
         return self.input_stretch.text(), self.input_fixed.text()
+
+class DefaultPathDialog(QDialog):
+    def __init__(self, current_left, current_right, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Setări Directoare Default")
+        self.setFixedWidth(500)
+        layout = QVBoxLayout(self)
+
+        # UI pentru Panel Stânga
+        layout.addWidget(QLabel("Cale Default Panel Stânga:"))
+        self.left_edit = QLineEdit(current_left)
+        layout.addWidget(self.left_edit)
+        self.btn_set_left = QPushButton("Setează cu calea curentă (Stânga)")
+        layout.addWidget(self.btn_set_left)
+
+        layout.addWidget(QFrame()) # Separator
+
+        # UI pentru Panel Dreapta
+        layout.addWidget(QLabel("Cale Default Panel Dreapta:"))
+        self.right_edit = QLineEdit(current_right)
+        layout.addWidget(self.right_edit)
+        self.btn_set_right = QPushButton("Setează cu calea curentă (Dreapta)")
+        layout.addWidget(self.btn_set_right)
+
+        # Butoane Salvare/Anulare
+        self.buttons = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok | 
+            QtWidgets.QDialogButtonBox.StandardButton.Cancel
+        )
+        self.buttons.accepted.connect(self.validate_and_accept)
+        self.buttons.rejected.connect(self.reject)
+        layout.addWidget(self.buttons)
+
+        # Logica pentru butoanele de "Set current"
+        self.btn_set_left.clicked.connect(lambda: self.left_edit.setText(str(parent.currentPathLeft)))
+        self.btn_set_right.clicked.connect(lambda: self.right_edit.setText(str(parent.currentPathRight)))
+
+    def validate_and_accept(self):
+        lp = Path(self.left_edit.text())
+        rp = Path(self.right_edit.text())
+
+        if lp.is_dir() and rp.is_dir():
+            save_settings(lp, rp)
+            self.accept()
+        else:
+            QMessageBox.warning(self, "Eroare", "Una dintre căi nu este validă sau nu este un director!")

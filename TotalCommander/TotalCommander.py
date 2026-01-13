@@ -1,26 +1,31 @@
-from faulthandler import is_enabled
-import sys
-from tkinter import Button
-from PyQt6 import QtGui, QtCore, QtWidgets
-from PyQt6.QtWidgets import QApplication, QInputDialog, QLabel, QPushButton, QSpinBox, QFileIconProvider, QWidget, QTreeWidgetItem, QTreeWidget, QDialog, QMessageBox, QMenu, QLineEdit, QFontDialog, QLabel
-from PyQt6.uic import loadUi
-from pathlib import Path
-from PyQt6.QtCore import QFileInfo, QDir
-from PyQt6.QtWidgets import QTreeView, QVBoxLayout, QHeaderView, QMenuBar, QMenu, QFrame
-from PyQt6.QtGui import QFileSystemModel, QKeySequence, QShortcut, QAction, QPalette, QColor
-import os
-import psutil
-import ctypes
-import shutil
-import zipfile
-import datetime
-from PyQt6.QtCore import Qt
-import PyQt6.QtCore as QtCore
-import webbrowser
+from CommonImports import *
 from SearchDialog import SearchDialog
-from Settings import SettingsMenu
-from Settings import SizeInputDialog
-from Settings import PersistentTopItem
+from Settings import SettingsMenu, SizeInputDialog, DefaultPathDialog
+
+CONFIG_FILE = "settings.json"
+
+def load_settings():
+    # Verificăm dacă există discul D, altfel punem C ca default pentru panoul drept
+    default_right = "D:/" if Path("D:/").exists() else "C:/"
+    
+    defaults = {
+        "left_path": "C:/", 
+        "right_path": default_right
+    }
+
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, "r") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Eroare la citirea setărilor: {e}")
+            return defaults
+    return defaults
+
+def save_settings(left, right):
+    with open(CONFIG_FILE, "w") as f:
+        json.dump({"left_path": str(left), "right_path": str(right)}, f)
+
 def list_directory_contents(directory_path: str) -> list[dict]:
     path = Path(directory_path)
     if not path.is_dir():
@@ -130,9 +135,15 @@ class MyApp(QDialog):
         self.PathHistoryNextLeft = []
         self.PathHistoryNextRight = []
 
-        #discul afisad (default)
-        self.currentPathLeft = Path("C:/")
-        self.currentPathRight = Path("D:/") if Path("D:/").exists() else Path("C:/")
+        #discul afisat (default)
+        settings = load_settings()
+        self.currentPathLeft = Path(settings['left_path'])
+        if not self.currentPathLeft.exists(): 
+            self.currentPathLeft = Path("C:/")
+
+        self.currentPathRight = Path(settings['right_path'])
+        if not self.currentPathRight.exists():
+            self.currentPathRight = Path("C:/")
         
         #pornim cu panelul stang default
         self.panel_activated = 'Left' 
@@ -228,6 +239,12 @@ class MyApp(QDialog):
 
             print("Toate elementele de tip Tree au fost actualizate.")
 
+    def openDefaultPathSettings(self):
+        settings = load_settings()
+        dialog = DefaultPathDialog(settings['left_path'], settings['right_path'], self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            QMessageBox.information(self, "Succes", "Căile default au fost salvate pentru următoarea pornire.")
+
     def toggle_theme(self):
         self.is_dark = not self.is_dark
     
@@ -321,9 +338,13 @@ class MyApp(QDialog):
         self.settingsAction.triggered.connect(self.openSettings)
         optionsMenu.addAction(self.settingsAction)
 
-        self.changeAction = QAction("Shimba Dimnesiunea Panel-urilor", self)
+        self.changeAction = QAction("Schimba Dimensiunea Panel-urilor", self)
         self.changeAction.triggered.connect(self.ChangeSize)
         optionsMenu.addAction(self.changeAction)
+
+        self.defaultPathAction = QAction("Setare Directoare Start", self)
+        self.defaultPathAction.triggered.connect(self.openDefaultPathSettings)
+        optionsMenu.addAction(self.defaultPathAction)
 
         # Add the menu bar to your main layout
         # Assuming your .ui file has a main QVBoxLayout named 'verticalLayout'
