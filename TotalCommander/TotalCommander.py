@@ -3,6 +3,7 @@ from SearchDialog import SearchDialog
 from Settings import SettingsMenu, SizeInputDialog, DefaultPathDialog
 
 CONFIG_FILE = "settings.json"
+SHOW_EXTRA_MESSAGES = True
 
 def load_settings():
     # Verificăm dacă există discul D, altfel punem C ca default pentru panoul drept
@@ -10,21 +11,30 @@ def load_settings():
     
     defaults = {
         "left_path": "C:/", 
-        "right_path": default_right
+        "right_path": default_right,
+        "show_extra_messages": True
     }
 
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, "r") as f:
-                return json.load(f)
+                loaded = json.load(f)
+                # Use .get() to avoid errors if the key is missing from an old file
+                defaults.update(loaded)
+                return defaults
         except Exception as e:
             print(f"Eroare la citirea setărilor: {e}")
             return defaults
     return defaults
 
-def save_settings(left, right):
+def save_settings(left, right, show_messages):
     with open(CONFIG_FILE, "w") as f:
-        json.dump({"left_path": str(left), "right_path": str(right)}, f)
+        # Save all three parameters to the JSON file
+        json.dump({
+            "left_path": str(left), 
+            "right_path": str(right),
+            "show_extra_messages": show_messages
+        }, f)
 
 def list_directory_contents(directory_path: str) -> list[dict]:
     path = Path(directory_path)
@@ -93,6 +103,14 @@ class MyApp(QDialog):
     def __init__(self):
         super().__init__()
         loadUi('Display.ui', self)
+
+        self.setMinimumWidth(400) 
+        self.frameTreesLeft.setMinimumWidth(50)
+        self.frameTreesRight.setMinimumWidth(50)
+        self.LeftTree.setMinimumWidth(0)
+        self.RightTree.setMinimumWidth(0)
+        self.setWindowTitle("My Commander")
+        global SHOW_EXTRA_MESSAGES
         
         self.all_panels = [self.LeftTree, self.RightTree, self.LeftPanelTree, self.RightPanelTree]
         self.setWindowState(QtCore.Qt.WindowState.WindowMaximized)
@@ -117,12 +135,14 @@ class MyApp(QDialog):
         self.RightTree.setDragDropMode(QtWidgets.QAbstractItemView.DragDropMode.DragDrop)
         self.RightTree.setDefaultDropAction(QtCore.Qt.DropAction.MoveAction)
 
-        self.LeftTree.dropEvent = lambda event: self.handle_drop(event, self.getActivePanel(), self.LeftTree)
-        self.RightTree.dropEvent = lambda event: self.handle_drop(event, self.getActivePanel(), self.RightTree)
+        # Înlocuiește lambda-urile vechi cu acestea:
+        self.LeftTree.dragEnterEvent = self.custom_drag_enter
+        self.LeftTree.dragMoveEvent = self.custom_drag_enter # Folosim aceeași logică
+        self.LeftTree.dropEvent = lambda event: self.handle_drop(event, self.LeftTree)
 
-        # Suprascriem dragEnterEvent pentru a accepta acțiunea
-        self.LeftTree.dragEnterEvent = lambda event: event.accept()
-        self.RightTree.dragEnterEvent = lambda event: event.accept()
+        self.RightTree.dragEnterEvent = self.custom_drag_enter
+        self.RightTree.dragMoveEvent = self.custom_drag_enter
+        self.RightTree.dropEvent = lambda event: self.handle_drop(event, self.RightTree)
         
         self.is_dark = False
 
@@ -144,6 +164,8 @@ class MyApp(QDialog):
         self.currentPathRight = Path(settings['right_path'])
         if not self.currentPathRight.exists():
             self.currentPathRight = Path("C:/")
+
+        SHOW_EXTRA_MESSAGES = settings.get('show_extra_messages', True)
         
         #pornim cu panelul stang default
         self.panel_activated = 'Left' 
@@ -174,8 +196,11 @@ class MyApp(QDialog):
         # F7 - Folder Nou
         QShortcut(QKeySequence("F7"), self).activated.connect(self.AddFile)
 
-        # Delete - Stergere
-        QShortcut(QKeySequence(Qt.Key.Key_Delete), self).activated.connect(self.DelFile)
+        # Delete - Recycle Bin
+        QShortcut(QKeySequence(Qt.Key.Key_Delete), self).activated.connect(self.TrashFile)
+
+        # Ctrl + Del - Stergere
+        QShortcut(QKeySequence("Ctrl+Del"), self).activated.connect(self.DelFile)
 
         # Ctrl + X pentru Tăiere (Cut)
         QShortcut(QKeySequence.StandardKey.Cut, self).activated.connect(self.CutPath)
@@ -187,6 +212,7 @@ class MyApp(QDialog):
         QShortcut(QKeySequence(Qt.Key.Key_Right), self).activated.connect(self.GoNext)
         
         self.auto_detect_theme()
+
     def update_disk_info(self, path, label_to_update):
         try:
             usage = psutil.disk_usage(str(path))
@@ -242,7 +268,7 @@ class MyApp(QDialog):
     def openDefaultPathSettings(self):
         settings = load_settings()
         dialog = DefaultPathDialog(settings['left_path'], settings['right_path'], self)
-        if dialog.exec() == QDialog.DialogCode.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted and SHOW_EXTRA_MESSAGES:
             QMessageBox.information(self, "Succes", "Căile default au fost salvate pentru următoarea pornire.")
 
     def toggle_theme(self):
@@ -346,6 +372,12 @@ class MyApp(QDialog):
         self.defaultPathAction.triggered.connect(self.openDefaultPathSettings)
         optionsMenu.addAction(self.defaultPathAction)
 
+        self.messageToggleAction = QAction("Afisare Mesaje Confirmare", self)
+        self.messageToggleAction.setCheckable(True)
+        self.messageToggleAction.setChecked(SHOW_EXTRA_MESSAGES) 
+        self.messageToggleAction.triggered.connect(self.toggle_extra_messages)
+        optionsMenu.addAction(self.messageToggleAction)
+
         # Add the menu bar to your main layout
         # Assuming your .ui file has a main QVBoxLayout named 'verticalLayout'
         self.layout().setMenuBar(self.menuBar)
@@ -386,6 +418,29 @@ class MyApp(QDialog):
         self.setupTree(self.RightTree, self.currentPathRight)
         print("Panouri actualizate.")
 
+    def syncSidePanelsToPaths(self, side=None):
+        """
+        Sincronizează arborii laterali. 
+        Dacă side='Left', sincronizează doar stânga. 
+        Dacă side='Right', doar dreapta. 
+        Dacă e None, ambele.
+        """
+        # Sincronizare Stânga
+        if side is None or side == 'Left':
+            left_idx = self.model.index(str(self.currentPathLeft))
+            if left_idx.isValid():
+                self.LeftPanelTree.setCurrentIndex(left_idx)
+                self.LeftPanelTree.scrollTo(left_idx, QtWidgets.QAbstractItemView.ScrollHint.PositionAtCenter)
+                self.LeftPanelTree.expand(left_idx)
+
+        # Sincronizare Dreapta
+        if side is None or side == 'Right':
+            right_idx = self.model.index(str(self.currentPathRight))
+            if right_idx.isValid():
+                self.RightPanelTree.setCurrentIndex(right_idx)
+                self.RightPanelTree.scrollTo(right_idx, QtWidgets.QAbstractItemView.ScrollHint.PositionAtCenter)
+                self.RightPanelTree.expand(right_idx)
+
     def ConfigWidgets(self): 
 
         self.LeftTree.installEventFilter(self)
@@ -395,6 +450,9 @@ class MyApp(QDialog):
 
         self.LeftTree.viewport().installEventFilter(self)
         self.RightTree.viewport().installEventFilter(self)
+
+        self.LeftPathLine.setMinimumWidth(50)
+        self.RightPathLine.setMinimumWidth(50)
 
         self.SortColumns()
 
@@ -409,6 +467,11 @@ class MyApp(QDialog):
         self.LeftTree.itemDoubleClicked.connect(self.OpenItem)
         self.RightTree.itemDoubleClicked.connect(self.OpenItem)
 
+        # Activăm selecția extinsă pentru ambele paneluri
+        self.LeftTree.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.RightTree.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection)
+
+        # Headers pentru coloane
         self.LeftTree.setHeaderLabels(["Name", "Size", "Ext", "DateMod"])
         self.RightTree.setHeaderLabels(["Name", "Size", "Ext", "DateMod"])
 
@@ -451,7 +514,8 @@ class MyApp(QDialog):
         if 'F5 - Arhivare' in text: self.ZipPath()
         if 'F6 - Refresh' in text: self.RefreshPanels()
         if 'F7 - Folder Nou'in text: self.AddFile()
-        if 'Del - Stergere' in text: self.DelFile()
+        if 'Del - Recycle Bin' in text: self.TrashFile()
+        if 'CTRL + Del - Stergere' in text: self.DelFile()
         if 'CTRL + C - Copiere' in text: self.CopyPath()
         if 'CTRL + V - Lipire' in text: self.PastePath()
         if 'CTRL + X - Taiere' in text: self.CutPath()
@@ -459,6 +523,22 @@ class MyApp(QDialog):
         if 'Setari' in text: self.openSettings()
     
     def eventFilter(self, source, event):
+        # Detectare Mouse Press pentru a salva poziția de start a drag-ului
+        if event.type() == QtCore.QEvent.Type.MouseButtonPress:
+            if source in [self.LeftTree, self.LeftTree.viewport(), self.RightTree, self.RightTree.viewport()]:
+                self.drag_start_pos = event.pos()
+
+        # Detectare Mouse Move pentru a iniția Drag-ul spre EXTERIOR
+        if event.type() == QtCore.QEvent.Type.MouseMove:
+            if source in [self.LeftTree, self.LeftTree.viewport(), self.RightTree, self.RightTree.viewport()]:
+                if event.buttons() & Qt.MouseButton.LeftButton:
+                    # Verificăm dacă mouse-ul s-a mișcat suficient pentru a fi considerat drag
+                    if (event.pos() - self.drag_start_pos).manhattanLength() > QApplication.startDragDistance():
+                        # Identificăm arborele corect (chiar dacă sursa e viewport-ul)
+                        actual_tree = self.LeftTree if source in [self.LeftTree, self.LeftTree.viewport()] else self.RightTree
+                        self.perform_external_drag(actual_tree)
+                        return True # Consumăm evenimentul
+
         # Detectare focus 
         if event.type() == QtCore.QEvent.Type.FocusIn: #pentru tree uri
             if source == self.LeftTree:
@@ -574,6 +654,9 @@ class MyApp(QDialog):
 
         unzip_action = menu.addAction("Extrage din folder zip")
         unzip_action.triggered.connect(self.UnzipPath)
+
+        trash_action = menu.addAction("Trimite la Recycle Bin")
+        trash_action.triggered.connect(self.TrashFile)
         
         menu.exec(active_tree.mapToGlobal(position))
 
@@ -680,6 +763,18 @@ class MyApp(QDialog):
             print("Applying light theme")
             self.apply_light_theme()
 
+    def toggle_extra_messages(self):
+        global SHOW_EXTRA_MESSAGES
+        SHOW_EXTRA_MESSAGES = self.messageToggleAction.isChecked()
+        
+        # Save the current state along with the paths
+        save_settings(self.currentPathLeft, self.currentPathRight, SHOW_EXTRA_MESSAGES)
+        
+        if SHOW_EXTRA_MESSAGES:
+            print("Mesajele extra au fost activate.")
+        else:
+            print("Mesajele extra au fost dezactivate.")
+
     def NavigateToPathLeft(self):
         address = self.LeftPathLine.text()
         if not address:
@@ -706,6 +801,7 @@ class MyApp(QDialog):
                 
                 self.setupTree(active_tree, target_path)
                 self.LeftPathLine.setText(str(target_path))
+                self.syncSidePanelsToPaths('Left')
                 
                 # FIX FINAL: Forteaza focusul inapoi pe Tree Widget-ul activ
                 active_tree.setFocus() 
@@ -757,6 +853,7 @@ class MyApp(QDialog):
                 
                 self.setupTree(active_tree, target_path)
                 self.RightPathLine.setText(str(target_path))
+                self.syncSidePanelsToPaths('Right')
                 
                 # FIX FINAL: Forteaza focusul inapoi pe Tree Widget-ul activ
                 active_tree.setFocus() 
@@ -812,121 +909,72 @@ class MyApp(QDialog):
                 QMessageBox.critical(self, "Eroare", f"Redenumirea a esuat: {e}")
 
     def CopyPath(self):
-        active_tree, prefix = self.getActivePanel()
-        selected_item = active_tree.currentItem()
+        active_tree, _ = self.getActivePanel()
+        items = active_tree.selectedItems()
+        if not items: return
+        # Salvăm lista de căi
+        self.clipboard_paths = [Path(i.data(0, Qt.ItemDataRole.UserRole)) for i in items if i.text(0) != ".."]
+        self.clipboard_operation = 'Copy'
 
-        if selected_item is None:
-            QMessageBox.warning(self, "Atentie", "Va rugam selectati un element.")
-            return
+        count = len(self.clipboard_paths)
+        copiate = "element a fost pus in" if count == 1 else "elemente au fost pus in"
+        if SHOW_EXTRA_MESSAGES:
+            QMessageBox.information(self, "Clipboard", f"{count} {copiate} clipboard.")
 
-        path_str = selected_item.data(0, QtCore.Qt.ItemDataRole.UserRole)
-        
-        if not path_str:
-            QMessageBox.warning(self, "Eroare", "Calea elementului nu a putut fi citita.")
-            return
-
-        try:
-            self.clipboard_path = Path(path_str)
-            self.clipboard_operation = 'Copy'
-            
-            # Copiaza calea in clipboard-ul de sistem (optional, pentru compatibilitate)
-            clipboard_sys = QApplication.clipboard()
-            clipboard_sys.setText(path_str)
-            
-            QMessageBox.information(self, "Succes", f"Elementul '{self.clipboard_path.name}' a fost copiat.")
-            
-        except Exception as e:
-            QMessageBox.critical(self, "Eroare", f"Copierea caii a esuat: {e}")
     def CutPath(self):
-        active_tree, prefix = self.getActivePanel()
-        selected_item = active_tree.currentItem()
+        self.CopyPath()
+        self.clipboard_operation = 'Cut'
 
-        if selected_item is None or selected_item.text(0) == "..":
-            QMessageBox.warning(self, "Atentie", "Va rugam selectati un element valid.")
-            return
-
-        path_str = selected_item.data(0, QtCore.Qt.ItemDataRole.UserRole)
-        
-        if not path_str:
-            QMessageBox.warning(self, "Eroare", "Calea elementului nu a putut fi citita.")
-            return
-
-        try:
-            self.clipboard_path = Path(path_str)
-            self.clipboard_operation = 'Cut'
-            
-            # Copiaza calea în clipboard-ul de sistem (optional, pentru compatibilitate)
-            clipboard_sys = QApplication.clipboard()
-            clipboard_sys.setText(path_str)
-            
-            QMessageBox.information(self, "Succes", f"Elementul '{self.clipboard_path.name}' a fost taiat.")
-            
-        except Exception as e:
-            QMessageBox.critical(self, "Eroare", f"Taierea caii a esuat: {e}")
     def PastePath(self):
-        source_path = self.clipboard_path
-        operation = self.clipboard_operation
-
-        active_tree, prefix = self.getActivePanel()
-        current_path_attr = 'currentPath' + prefix
-        destination_dir = getattr(self, current_path_attr)
-        
-        # Verifica daca exista ceva in clipboard
-        if source_path is None:
-            QMessageBox.warning(self, "Atentie", "Nu este niciun element copiat/taiat.")
+        if not hasattr(self, 'clipboard_paths') or not self.clipboard_paths:
             return
+    
+        active_tree, prefix = self.getActivePanel()
+        dest_dir = getattr(self, f'currentPath{prefix}')
         
-        # Nu poti muta/copia un director in el insusi sau in subdirectorul sau
-        if destination_dir.is_relative_to(source_path):
-             QMessageBox.critical(self, "Eroare", "Directorul destinatie nu poate fi sursa sau un subdirector al sursei.")
-             return
-             
-        # Construieste calea destinatie completa
-        destination_path = destination_dir / source_path.name
+        total_files = len(self.clipboard_paths)
+        # Marcăm că aceasta este o operațiune explicita de clipboard
+        self.is_clipboard_paste = True
+        self.current_active_op = self.clipboard_operation
+
+        self.pd = QtWidgets.QProgressDialog("Pregătire...", "Anulează", 0, total_files, self)
+        self.pd.setWindowTitle("Operațiune în curs")
+        self.pd.setWindowModality(QtCore.Qt.WindowModality.WindowModal)
+        self.pd.setMinimumDuration(500) # Apare dupa 0.25 secunde
+        self.pd.setAutoClose(True)
+
+        self.file_worker = FileOperationWorker(self.clipboard_paths, dest_dir, self.clipboard_operation)
+    
+        # Conectăm semnalul de progres la dialog
+        self.file_worker.progress.connect(lambda idx, name: self.pd.setValue(idx) or self.pd.setLabelText(f"Procesare: {name}"))
+    
+        self.file_worker.finished.connect(self.on_operation_complete)
+        self.file_worker.error.connect(self.on_operation_error)
+        self.pd.canceled.connect(self.file_worker.stop) # Trimite semnalul de oprire la threadF
+        self.file_worker.start()
+
+    def on_operation_complete(self, message):
+        if hasattr(self, 'pd'): self.pd.close() 
+        self.RefreshPanels()
+        self.refresh_memory_labels()
+
+        # Folosim current_active_op pentru mesaj
+        op_name = "Mutarea" if self.current_active_op == 'Cut' else "Copierea"
+
+        if SHOW_EXTRA_MESSAGES:
+            QMessageBox.information(self, "Operațiune Finalizată", f"{op_name} s-a încheiat.\n{message}")
+    
+        # RESETARE CLIPBOARD: Doar dacă a fost Cut manual și Paste manual
+        if getattr(self, 'is_clipboard_paste', False) and self.clipboard_operation == 'Cut':
+            self.clipboard_paths = []
+            self.clipboard_operation = ''
         
-        # Verifica daca elementul exista deja la destinatie (pentru a evita suprascrierea accidentala)
-        if destination_path.exists():
-            reply = QMessageBox.question(self, 'Confirmare Suprascriere',
-                                         f"Elementul '{source_path.name}' exista deja. Doriti sa il suprascrieti?",
-                                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-            if reply == QMessageBox.StandardButton.No:
-                return
+        self.is_clipboard_paste = False # Resetăm flag-ul
 
-        try:
-            if operation == 'Copy':
-                # Folosim copy2 pentru a pastra metadatele fisierului
-                if source_path.is_dir():
-                    shutil.copytree(source_path, destination_path, dirs_exist_ok=True)
-                else:
-                    shutil.copy2(source_path, destination_path)
-                self.refresh_memory_labels()
-                message = f"Elementul '{source_path.name}' a fost copiat in:\n{destination_dir}"
-                
-            elif operation == 'Cut':
-                # Folosim move (redenumire/mutare)
-                shutil.move(str(source_path), str(destination_path))
-                message = f"Elementul '{source_path.name}' a fost mutat in:\n{destination_dir}"
-                
-                # Dupa mutare, sterge starea clipboard-ului
-                self.clipboard_path = None
-                self.clipboard_operation = ''
-                self.refresh_memory_labels()
-                
-            else:
-                QMessageBox.critical(self, "Eroare", "Operatie clipboard necunoscuta.")
-                return
+    def on_operation_error(self, err_msg):
+        if hasattr(self, 'pd'): self.pd.close()
+        QMessageBox.critical(self, "Eroare", f"Operațiunea a eșuat:\n{err_msg}")
 
-            QMessageBox.information(self, "Succes", message)
-            
-            # Reimprospateaza ambele panouri dupa o operatie reusita (sursa si destinatia)
-            self.setupTree(self.LeftTree, self.currentPathLeft)
-            self.setupTree(self.RightTree, self.currentPathRight)
-            
-        except PermissionError:
-            QMessageBox.critical(self, "Eroare de Permisiune", 
-                                 f"Acces interzis pentru {operation} in directorul: {destination_dir}")
-        except Exception as e:
-            QMessageBox.critical(self, "Eroare", f"Lipirea a esuat. Eroare: {e}")
     def UnzipPath(self):
         active_tree, prefix = self.getActivePanel()
         selected_item = active_tree.currentItem()
@@ -956,7 +1004,8 @@ class MyApp(QDialog):
             # Refresh panou pentru a vedea noul folder extras
             self.setupTree(active_tree, getattr(self, f'currentPath{prefix}'))
         
-            QMessageBox.information(self, "Succes", f"Arhiva a fost extrasa in:\n{dest_dir.name}")
+            if SHOW_EXTRA_MESSAGES:
+                QMessageBox.information(self, "Succes", f"Arhiva a fost extrasa in:\n{dest_dir.name}")
 
         except Exception as e:
             QMessageBox.critical(self, "Eroare", f"Extractia a esuat: {e}")
@@ -990,7 +1039,8 @@ class MyApp(QDialog):
             current_path = getattr(self, f'currentPath{prefix}')
             self.setupTree(active_tree, current_path)
         
-            QMessageBox.information(self, "Succes", f"Arhiva a fost creata:\n{zip_name.name}")
+            if SHOW_EXTRA_MESSAGES:
+                QMessageBox.information(self, "Succes", f"Arhiva a fost creata:\n{zip_name.name}")
 
         except Exception as e:
             QMessageBox.critical(self, "Eroare", f"Arhivarea a esuat: {e}")
@@ -1063,6 +1113,7 @@ class MyApp(QDialog):
                     self.setupTree(self.LeftTree, selected_path)
                     self.panel_activated = 'Left'
                     self.LeftPathLine.setText(str(selected_path))
+                    self.syncSidePanelsToPaths('Left')
                 else:
                     self.PathHistoryBackRight.append(self.currentPathRight)
                     self.PathHistoryNextRight = []
@@ -1070,6 +1121,7 @@ class MyApp(QDialog):
                     self.setupTree(self.RightTree, selected_path)
                     self.panel_activated = 'Right'
                     self.RightPathLine.setText(str(selected_path))
+                    self.syncSidePanelsToPaths('Right')
                 self.refresh_memory_labels()
                 self.style_active_panel(sender_widget)
 
@@ -1120,6 +1172,7 @@ class MyApp(QDialog):
             setattr(self, current_path_attr, new_path)
             self.setupTree(active_tree, new_path)
             self.LeftPathLine.setText(str(new_path))
+            self.syncSidePanelsToPaths(prefix)
             print(f"Inapoi la: {new_path}")
         else:
             print("Nu exista istoric anterior.")
@@ -1147,49 +1200,76 @@ class MyApp(QDialog):
         self.refresh_memory_labels()
 
     def DelFile(self):
-        
         active_tree, prefix = self.getActivePanel()
-        selected_item = active_tree.currentItem()
+        selected_items = active_tree.selectedItems()
         current_path = getattr(self, f'currentPath{prefix}')
-        
-        self.style_active_panel(active_tree)
 
-        if not selected_item:
-            QMessageBox.warning(self, "Atentie", "Va rugam selectati un fisier sau director de sters.")
+        if not selected_items:
+            QMessageBox.warning(self, "Atentie", "Selectati elementele pentru stergere.")
             return
 
-        selected_path_str = selected_item.data(0, QtCore.Qt.ItemDataRole.UserRole)
-        item_name = selected_item.text(0)
-        item_ext = selected_item.text(2)
-        
-        if item_name == "..":
-            QMessageBox.warning(self, "Eroare", "Nu puteti sterge directorul parinte (..).")
-            return
-
-        is_dir = (item_ext == "DIR")
-        confirm_text = "Directorul" if is_dir else "Fisierul"
-        
+        # Filtrăm elementele valide (fără "..")
+        valid_items = [item for item in selected_items if item.text(0) != ".."]
+        # Distingam plural sau singular
+        elemente = "element" if len(valid_items)==1 else "elemente"
+    
         reply = QMessageBox.question(self, 'Confirmare Stergere',
-                                     f"Sunteti sigur ca doriti sa stergeti {confirm_text}:\n{item_name}?",
+                                     f"Sunteti sigur ca doriti sa stergeti {len(valid_items)} {elemente}?\n(Atentie, nu este trimis in Recycle Bin!)",
                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-
+        
+        errors = []
         if reply == QMessageBox.StandardButton.Yes:
-            try:
-                if is_dir:
-                    shutil.rmtree(selected_path_str)
-                else:
-                    os.remove(selected_path_str)
-                
-                print(f"Sters cu succes: {selected_path_str}")
-                self.refresh_memory_labels()
-                self.setupTree(active_tree, current_path) 
-                
-            except PermissionError:
-                QMessageBox.critical(self, "Eroare de Permisiune", 
-                                     f"Nu aveti permisiunea de a sterge elementul: {item_name}.")
-            except Exception as e:
-                QMessageBox.critical(self, "Eroare de I/O", 
-                                     f"Stergerea a esuat. Eroare: {e}")
+            for item in valid_items:
+                path_str = item.data(0, QtCore.Qt.ItemDataRole.UserRole)
+                try:
+                    if item.text(2) == "DIR":
+                        shutil.rmtree(path_str)
+                    else:
+                        os.remove(path_str)
+                except Exception as e:
+                    errors.append(f"{item.text(0)}: {e}")
+
+        deleted_count = len(valid_items)
+        if deleted_count > 0 and SHOW_EXTRA_MESSAGES:
+                # Mesaj specific pentru numărul de fișiere eliminate
+                QMessageBox.information(self, "Succes", f"{deleted_count} elemente au fost sterse.")
+        if errors:
+            QMessageBox.warning(self, "Erori", f"Nu s-au putut șterge {len(errors)} elemente.")
+            
+        self.RefreshPanels()
+        self.refresh_memory_labels()
+
+    def TrashFile(self):
+        active_tree, prefix = self.getActivePanel()
+        selected_items = active_tree.selectedItems()
+
+        if not selected_items:
+            return
+
+        valid_items = [item for item in selected_items if item.text(0) != ".."]
+    
+        # Importăm aici pentru a nu genera erori dacă librăria nu e instalată
+        try:
+            from send2trash import send2trash
+        except ImportError:
+            QMessageBox.critical(self, "Eroare", "Librăria 'send2trash' nu este instalată!\nRulează: pip install send2trash")
+            return
+
+        try:
+            for item in valid_items:
+                path_str = item.data(0, QtCore.Qt.ItemDataRole.UserRole)
+                # Transformăm path-ul în format nativ pentru sistemul de operare
+                send2trash(os.path.abspath(path_str))
+        
+            self.RefreshPanels()
+            self.refresh_memory_labels()
+        
+            if SHOW_EXTRA_MESSAGES:
+                QMessageBox.information(self, "Recycle Bin", f"{len(valid_items)} elemente au fost trimise la coș.")
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Eroare", f"Nu s-a putut trimite la coș: {e}")
+
     def SortColumns(self):
         self.LeftTree.setSortingEnabled(False)
         self.RightTree.setSortingEnabled(False)
@@ -1246,39 +1326,23 @@ class MyApp(QDialog):
         self.LeftPanelTree.setModel(self.model)
         self.RightPanelTree.setModel(self.model)
 
+        # Ascundem coloanele de dimensiune, tip, dată (păstrăm doar numele)
         for i in range(1, self.model.columnCount()):
             self.LeftPanelTree.setColumnHidden(i, True)
             self.RightPanelTree.setColumnHidden(i, True)
-    
-        self.LeftPanelTree.header().hide()
-        self.LeftPanelTree.setAnimated(True)
-        self.LeftPanelTree.setIndentation(10)
-        self.RightPanelTree.header().hide()
-        self.RightPanelTree.setAnimated(True)
-        self.RightPanelTree.setIndentation(10)
 
-        root_index = self.model.index("")
-        self.LeftPanelTree.expand(root_index)
-        self.RightPanelTree.expand(root_index)
+        # Configurări vizuale pentru header
+        for tree in [self.LeftPanelTree, self.RightPanelTree]:
+            tree.header().hide()
+            tree.setAnimated(True)
+            tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+            tree.header().setStretchLastSection(False)
+
+        # Sincronizăm vizual arborele cu directoarele de pornire
+        self.syncSidePanelsToPaths()
 
         self.LeftPanelTree.clicked.connect(self.LeftPanelClick)
         self.RightPanelTree.clicked.connect(self.RightPanelClick)
-        # Obținem obiectul header al TreeView-ului
-        header = self.LeftPanelTree.header()
-
-        # 1. Permitem coloanelor să iasă din cadrul vizibil (activează scroll-ul)
-        header.setStretchLastSection(False)
-
-        # 2. Setăm prima coloană (cea cu numele) să se auto-dimensioneze
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        
-        header = self.RightPanelTree.header()
-
-        # 1. Permitem coloanelor să iasă din cadrul vizibil (activează scroll-ul)
-        header.setStretchLastSection(False)
-
-        # 2. Setăm prima coloană (cea cu numele) să se auto-dimensioneze
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
 
 
     def LeftPanelClick(self, index):
@@ -1327,6 +1391,7 @@ class MyApp(QDialog):
     
         # 3. Refresh the tree widget
         self.RefreshPanels()
+        self.syncSidePanelsToPaths(prefix)
     
         # 4. Find and select the specific file
         # We wait a tiny bit for the tree to populate
@@ -1340,93 +1405,93 @@ class MyApp(QDialog):
                 tree.scrollToItem(item)
                 break
 
-    def handle_drop(self, event, source_tree, target_tree):
-        # Verify mime format
-        if not event.mimeData().hasFormat('application/x-qabstractitemmodeldatalist'):
-            return
+    def handle_drop(self, event, target_tree):
+        sources = []
+        if event.mimeData().hasUrls():
+            for url in event.mimeData().urls():
+                local_path = url.toLocalFile()
+                if local_path: sources.append(Path(local_path))
+        elif event.source() is not None:
+            selected_items = event.source().selectedItems()
+            sources = [Path(i.data(0, Qt.ItemDataRole.UserRole)) for i in selected_items if i.text(0) != ".."]
 
-        # Get the actual source widget that started the drag
-        source_tree = event.source()
-        if source_tree is None:
-            return
+        if not sources: return
 
-        selected_items = source_tree.selectedItems()
-        if not selected_items:
-            return
-
-        # Resolve the item under the mouse in the target tree (exact drop target)
-        try:
-            # PyQt6: position() -> QPointF
-            pos = event.position().toPoint()
-        except Exception:
-            # fallback for other versions
-            pos = event.pos()
-
+        # Determinăm destinația
+        prefix_target = "Left" if target_tree is self.LeftTree else "Right"
+        current_target_dir = getattr(self, f'currentPath{prefix_target}')
+        pos = event.position().toPoint()
         target_item = target_tree.itemAt(pos)
-
-        # Determine destination directory from the item under cursor (or from currentPath if none)
+        drop_dir = current_target_dir
+    
         if target_item:
-            target_item_path_str = target_item.data(0, QtCore.Qt.ItemDataRole.UserRole)
-            try:
-                if target_item_path_str:
-                    targ_path = Path(target_item_path_str)
-                    # If the target item is a directory, drop into it; otherwise drop into its parent
-                    drop_dir = targ_path if targ_path.is_dir() else targ_path.parent
-                else:
-                    # no stored path -> fallback to panel current path
-                    prefix_target = "Left" if target_tree is self.LeftTree else "Right"
-                    drop_dir = getattr(self, f'currentPath{prefix_target}')
-            except Exception:
-                prefix_target = "Left" if target_tree is self.LeftTree else "Right"
-                drop_dir = getattr(self, f'currentPath{prefix_target}')
+            path_str = target_item.data(0, QtCore.Qt.ItemDataRole.UserRole)
+            if path_str:
+                t_path = Path(path_str)
+                drop_dir = t_path if t_path.is_dir() else t_path.parent
+
+        # --- LOGICA DE FILTRARE (Cerința 2) ---
+        # Nu facem nimic dacă sursa și destinația sunt identice
+        valid_sources = [s for s in sources if s.parent.resolve() != drop_dir.resolve()]
+        if not valid_sources:
+            event.ignore()
+            return 
+
+        # Marcăm că este DRAG, nu clipboard paste (Cerința 1)
+        self.is_clipboard_paste = False
+        op = 'Copy' if (event.modifiers() & Qt.KeyboardModifier.ControlModifier) else 'Cut'
+        
+        # Salvăm operațiunea curentă pentru mesajul de final, fără a strica self.clipboard_operation
+        self.current_active_op = op 
+
+        self.file_worker = FileOperationWorker(valid_sources, drop_dir, op)
+        self.pd = QtWidgets.QProgressDialog(f"Transfer {op}...", "Anulează", 0, len(valid_sources), self)
+        self.file_worker.progress.connect(lambda idx, name: self.pd.setValue(idx) or self.pd.setLabelText(f"Fișier: {name}"))
+        self.file_worker.finished.connect(self.on_operation_complete)
+        self.file_worker.start()
+        event.acceptProposedAction()
+
+    def handle_drag_enter(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def custom_drag_enter(self, event):
+        # Verificăm dacă sunt fișiere din exterior (Urls) sau obiecte interne
+        if event.mimeData().hasUrls() or event.source() is not None:
+            event.acceptProposedAction()
         else:
-            # No item under cursor -> drop into the panel's current directory
-            prefix_target = "Left" if target_tree is self.LeftTree else "Right"
-            drop_dir = getattr(self, f'currentPath{prefix_target}')
+            event.ignore()
 
-        # Determine source directory / paths using the selected items' stored UserRole (full paths)
-        prefix_source = "Left" if source_tree is self.LeftTree else "Right"
-        # Note: we still keep the panel currentPath for any needed comparisons, but use the item's stored path as source.
-        for item in selected_items:
-            file_path_str = item.data(0, QtCore.Qt.ItemDataRole.UserRole)
-            if not file_path_str:
-                continue
-            src_path = Path(file_path_str)
-            dst_path = drop_dir / src_path.name
+    def custom_drag_move(self, event):
+        if event.mimeData().hasUrls() or event.source() is not None:
+            event.acceptProposedAction()
 
-            # Prevent dropping a folder into itself or its children
-            try:
-                if src_path == dst_path or dst_path.is_relative_to(src_path):
-                    QMessageBox.warning(self, "Eroare", "Nu puteti muta/copiere un director in el insusi sau intr-un subdirector al sau.")
-                    event.ignore()
-                    return
-            except Exception:
-                # is_relative_to might raise on unusual paths; ignore and continue but be conservative
-                pass
+    def perform_external_drag(self, tree):
+        selected_items = tree.selectedItems()
+        # Preluăm căile stocate în UserRole, excluzând ".."
+        paths = [item.data(0, Qt.ItemDataRole.UserRole) for item in selected_items if item.text(0) != ".."]
+    
+        if not paths:
+            return
 
-            # Check overwrite and perform copy/move
-            try:
-                is_ctrl_pressed = bool(event.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier)
+        # Creăm obiectul de Drag și MimeData (formatul universal de transfer)
+        drag = QtGui.QDrag(self)
+        mime_data = QtCore.QMimeData()
+    
+        # Transformăm string-urile de cale în QUrl-uri (esențial pentru Windows Explorer)
+        urls = [QtCore.QUrl.fromLocalFile(p) for p in paths]
+        mime_data.setUrls(urls)
+    
+        drag.setMimeData(mime_data)
+    
+        # (Opțional) Poți pune o iconiță care să urmărească mouse-ul
+        if selected_items:
+            drag.setPixmap(selected_items[0].icon(0).pixmap(32, 32))
 
-                if is_ctrl_pressed:
-                    # Copy
-                    if src_path.is_dir():
-                        shutil.copytree(src_path, dst_path, dirs_exist_ok=True)
-                    else:
-                        shutil.copy2(src_path, dst_path)
-                    print(f"Copiat: {src_path} -> {dst_path}")
-                else:
-                    # Move
-                    shutil.move(str(src_path), str(dst_path))
-                    print(f"Mutat: {src_path} -> {dst_path}")
-
-            except Exception as e:
-                print(f"Eroare la procesarea elementului {src_path}: {e}")
-                QMessageBox.warning(self, "Eroare", f"Nu s-a putut procesa {src_path.name}: {e}")
-
-        # Refresh both panels and accept the event
+        # Executăm operațiunea de Drag-and-Drop
+        drag.exec(Qt.DropAction.CopyAction | Qt.DropAction.MoveAction)
         self.RefreshPanels()
-        event.accept()
+        self.refresh_memory_labels()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

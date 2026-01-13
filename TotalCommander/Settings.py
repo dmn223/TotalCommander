@@ -108,7 +108,9 @@ class DefaultPathDialog(QDialog):
         rp = Path(self.right_edit.text())
 
         if lp.is_dir() and rp.is_dir():
-            save_settings(lp, rp)
+            # Import global variable to ensure it is preserved when saving paths
+            import TotalCommander
+            TotalCommander.save_settings(lp, rp, TotalCommander.SHOW_EXTRA_MESSAGES)
             self.accept()
         else:
-            QMessageBox.warning(self, "Eroare", "Una dintre căi nu este validă sau nu este un director!")
+            QMessageBox.warning(self, "Eroare", "Una dintre căi nu este validă!")

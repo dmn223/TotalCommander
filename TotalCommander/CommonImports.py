@@ -6,6 +6,7 @@ import datetime
 import zipfile
 import webbrowser
 import psutil
+import send2trash
 from pathlib import Path
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt, pyqtSignal, QThread, QFileInfo, QDir, QTimer
@@ -13,7 +14,8 @@ from PyQt6.QtWidgets import (
     QApplication, QDialog, QMainWindow, QPushButton, QLabel, QLineEdit,
     QTreeWidget, QTreeWidgetItem, QVBoxLayout, QHBoxLayout, QMessageBox,
     QFileDialog, QComboBox, QSpinBox, QHeaderView, QMenuBar, QMenu,
-    QFrame, QRadioButton, QCheckBox, QFontDialog, QFileIconProvider, QListWidgetItem
+    QFrame, QRadioButton, QCheckBox, QFontDialog, QFileIconProvider, 
+    QListWidgetItem, QInputDialog
 )
 from PyQt6.QtGui import QFileSystemModel, QKeySequence, QShortcut, QAction, QPalette, QColor
 from PyQt6.uic import loadUi
@@ -54,3 +56,63 @@ class PersistentTopItem(QTreeWidgetItem):
                 return int(val)
             return clean_size(data1) < clean_size(data2)
         return self.text(column).lower() < other.text(column).lower()
+
+# Clasa care ruleaza operatii pe fisiere intr-un thread separat ca sa nu inghete programul
+# În CommonImports.py
+class FileOperationWorker(QThread):
+    finished = pyqtSignal(str)
+    error = pyqtSignal(str)
+    progress = pyqtSignal(int, str)
+
+    def __init__(self, sources, destination_dir, operation):
+        super().__init__()
+        self.sources = sources if isinstance(sources, list) else [sources]
+        self.destination_dir = Path(destination_dir)
+        self.operation = operation
+        self._is_running = True # Flag pentru controlul execuției
+
+    def stop(self):
+        """Metodă apelată când utilizatorul apasă Anulează."""
+        self._is_running = False
+
+    def run(self):
+        try:
+            count = 0
+            for src_path in self.sources:
+                # VERIFICARE: Dacă utilizatorul a anulat, ieșim din buclă imediat
+                if not self._is_running:
+                    self.finished.emit("Operațiune anulată de utilizator.")
+                    return
+
+                src = Path(src_path)
+                self.progress.emit(count, src.name)
+                
+                dest = self.destination_dir / src.name
+
+                # Logica de redenumire/copiere ...
+                if src == dest:
+                    if self.operation == 'Copy':
+                        new_name = f"{src.stem} - Copy{src.suffix}"
+                        dest = self.destination_dir / new_name
+                        counter = 1
+                        while dest.exists():
+                            dest = self.destination_dir / f"{src.stem} - Copy ({counter}){src.suffix}"
+                            counter += 1
+                    else:
+                        count += 1
+                        continue
+
+                if self.operation == 'Copy':
+                    if src.is_dir():
+                        shutil.copytree(src, dest, dirs_exist_ok=True)
+                    else:
+                        shutil.copy2(src, dest)
+                elif self.operation == 'Cut':
+                    shutil.move(str(src), str(dest))
+                
+                count += 1
+            
+            procesate = "element procesat" if count == 1 else "elemente procesate"
+            self.finished.emit(f"Succes: {count} {procesate}.")
+        except Exception as e:
+            self.error.emit(str(e))

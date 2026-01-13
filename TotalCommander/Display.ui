@@ -582,18 +582,9 @@
      <property name="frameShadow">
       <enum>QFrame::Raised</enum>
      </property>
-     <layout class="QVBoxLayout" name="verticalLayout_2">
-      <property name="spacing">
-       <number>2</number>
-      </property>
-      <property name="topMargin">
-       <number>0</number>
-      </property>
-      <property name="bottomMargin">
-       <number>2</number>
-      </property>
+     <layout class="QHBoxLayout" name="horizontalLayout_7">
       <item>
-       <widget class="QSplitter" name="splitter_2">
+       <widget class="QPushButton" name="pushButton">
         <property name="font">
          <font>
           <family>Microsoft Sans Serif</family>
@@ -601,129 +592,149 @@
           <bold>false</bold>
          </font>
         </property>
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
+        <property name="text">
+         <string>F3 - Proprietati</string>
         </property>
-        <widget class="QPushButton" name="pushButton">
-         <property name="font">
-          <font>
-           <family>Microsoft Sans Serif</family>
-           <pointsize>10</pointsize>
-           <bold>false</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>F3 - Proprietati</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_2">
-         <property name="font">
-          <font>
-           <family>Microsoft Sans Serif</family>
-           <pointsize>10</pointsize>
-           <bold>false</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>F4 - Redenumire</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_3">
-         <property name="font">
-          <font>
-           <family>Microsoft Sans Serif</family>
-           <pointsize>10</pointsize>
-           <bold>false</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>F5 - Arhivare</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_4">
-         <property name="font">
-          <font>
-           <family>Microsoft Sans Serif</family>
-           <pointsize>10</pointsize>
-           <bold>false</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>F6 - Refresh</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_5">
-         <property name="font">
-          <font>
-           <family>Microsoft Sans Serif</family>
-           <pointsize>10</pointsize>
-           <bold>false</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>F7 - Folder Nou</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_6">
-         <property name="font">
-          <font>
-           <family>Microsoft Sans Serif</family>
-           <pointsize>10</pointsize>
-           <bold>false</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>Del - Stergere</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_7">
-         <property name="font">
-          <font>
-           <family>Microsoft Sans Serif</family>
-           <pointsize>10</pointsize>
-           <bold>false</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>CTRL + C - Copiere</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_8">
-         <property name="font">
-          <font>
-           <family>Microsoft Sans Serif</family>
-           <pointsize>10</pointsize>
-           <bold>false</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>CTRL + V - Lipire</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_9">
-         <property name="font">
-          <font>
-           <family>Microsoft Sans Serif</family>
-           <pointsize>10</pointsize>
-           <bold>false</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>CTRL + X - Taiere</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_10">
-         <property name="font">
-          <font>
-           <family>Microsoft Sans Serif</family>
-           <pointsize>10</pointsize>
-           <bold>false</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>CTRL + F5 - Dezarhivare</string>
-         </property>
-        </widget>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButton_2">
+        <property name="font">
+         <font>
+          <family>Microsoft Sans Serif</family>
+          <pointsize>10</pointsize>
+          <bold>false</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string>F4 - Redenumire</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButton_3">
+        <property name="font">
+         <font>
+          <family>Microsoft Sans Serif</family>
+          <pointsize>10</pointsize>
+          <bold>false</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string>F5 - Arhivare</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButton_4">
+        <property name="font">
+         <font>
+          <family>Microsoft Sans Serif</family>
+          <pointsize>10</pointsize>
+          <bold>false</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string>F6 - Refresh</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButton_5">
+        <property name="font">
+         <font>
+          <family>Microsoft Sans Serif</family>
+          <pointsize>10</pointsize>
+          <bold>false</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string>F7 - Folder Nou</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButton_6">
+        <property name="font">
+         <font>
+          <family>Microsoft Sans Serif</family>
+          <pointsize>10</pointsize>
+          <bold>false</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string>Del - Recycle Bin</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButton_11">
+        <property name="font">
+         <font>
+          <family>Microsoft Sans Serif</family>
+          <pointsize>10</pointsize>
+          <bold>false</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string>CTRL + Del - Stergere</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButton_7">
+        <property name="font">
+         <font>
+          <family>Microsoft Sans Serif</family>
+          <pointsize>10</pointsize>
+          <bold>false</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string>CTRL + C - Copiere</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButton_8">
+        <property name="font">
+         <font>
+          <family>Microsoft Sans Serif</family>
+          <pointsize>10</pointsize>
+          <bold>false</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string>CTRL + V - Lipire</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButton_9">
+        <property name="font">
+         <font>
+          <family>Microsoft Sans Serif</family>
+          <pointsize>10</pointsize>
+          <bold>false</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string>CTRL + X - Taiere</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButton_10">
+        <property name="font">
+         <font>
+          <family>Microsoft Sans Serif</family>
+          <pointsize>10</pointsize>
+          <bold>false</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string>CTRL + F5 - Dezarhivare</string>
+        </property>
        </widget>
       </item>
      </layout>
