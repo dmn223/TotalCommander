@@ -679,14 +679,12 @@ class MyApp(QDialog):
 
     def getActivePanel(self):
         prefix = self.panel_activated
-        if prefix == 'Left': 
-            active_tree = self.LeftTree
-        elif prefix == 'Right': 
+        if 'Right' in prefix: 
+            prefix = "Right"
             active_tree = self.RightTree
-        elif prefix == 'LeftPanel': 
-            active_tree = self.LeftPanelTree
-        else:
-           active_tree = self.RightPanelTree
+        else: 
+            prefix = "Left"
+            active_tree = self.LeftTree
         return active_tree, prefix
 
     def showContextMenu(self, position):
