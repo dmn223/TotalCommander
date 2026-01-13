@@ -1001,6 +1001,7 @@ class MyApp(QDialog):
             
         except Exception as e:
             QMessageBox.critical(self, "Eroare", f"Nu s-au putut obtine proprietatile: {e}")
+
     def MouseButtonPress(self, event):
         if event.button() == Qt.MouseButton.XButton1:
             self.GoBack()
@@ -1008,6 +1009,7 @@ class MyApp(QDialog):
             self.GoNext()
         else:
             super().mousePressEvent(event)
+
     def refresh_memory_labels(self):
 
         if hasattr(self, 'LeftLabel') and self.currentPathLeft:
@@ -1276,7 +1278,7 @@ class MyApp(QDialog):
             setattr(self, f'currentPath{prefix}', Path(path))
             self.setupTree(active_tree, Path(path))
             self.RightPathLine.setText(path)
-            self.update_disk_info(path, self.LeftLabel)
+            self.update_disk_info(path, self.RightLabel)
 
     def OpenSearch(self):
         active_tree = self.getActivePanel()
