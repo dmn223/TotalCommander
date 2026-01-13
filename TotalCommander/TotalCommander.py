@@ -1070,76 +1070,161 @@ class MyApp(QDialog):
     def on_operation_error(self, err_msg):
         if hasattr(self, 'pd'): self.pd.close()
         QMessageBox.critical(self, "Eroare", f"Operațiunea a eșuat:\n{err_msg}")
-
+    
     def UnzipPath(self):
         active_tree, prefix = self.getActivePanel()
-        selected_item = active_tree.currentItem()
+        selected_items = active_tree.selectedItems()
+        
+        # 1. Filtrare: luăm doar fișierele cu extensia .zip
+        valid_zips = []
+        for item in selected_items:
+            path_str = item.data(0, Qt.ItemDataRole.UserRole)
+            if path_str:
+                p = Path(path_str)
+                if p.is_file() and p.suffix.lower() == '.zip':
+                    valid_zips.append(p)
 
-        if not selected_item:
-            QMessageBox.warning(self, "Atentie", "Selectati un element pentru dezarhivare.")
+        if not valid_zips:
+            QMessageBox.warning(self, "Atenție", "Nu a fost găsită nicio arhivă ZIP în selecție.")
             return
 
-        path_str = selected_item.data(0, QtCore.Qt.ItemDataRole.UserRole)
-        source_path = Path(path_str)
-
-        # Verificam ca este un zip
-        if source_path.suffix.lower() != '.zip':
-            QMessageBox.warning(self, "Atentie", "Elementul selectat nu este o arhiva ZIP.")
-            return
-    
-        # Numele viitoarei arhive (ex: document.zip -> document)
-        dest_dir = source_path.parent / (source_path.stem)
-
-        try:
-            dest_dir.mkdir(exist_ok=True)
-
-            with zipfile.ZipFile(source_path, 'r') as zip_ref:
-                # Extragem tot conținutul
-                zip_ref.extractall(dest_dir)
+        current_dir = getattr(self, f'currentPath{prefix}')
         
-            # Refresh panou pentru a vedea noul folder extras
-            self.setupTree(active_tree, getattr(self, f'currentPath{prefix}'))
-        
-            if SHOW_EXTRA_MESSAGES:
-                QMessageBox.information(self, "Succes", f"Arhiva a fost extrasa in:\n{dest_dir.name}")
+        # 2. Progress Dialog pentru întreaga operațiune
+        self.pd = QtWidgets.QProgressDialog("Pregătire dezarhivare...", "Anulează", 0, len(valid_zips), self)
+        self.pd.setWindowTitle("Dezarhivare Batch")
+        self.pd.setWindowModality(Qt.WindowModality.WindowModal)
+        self.pd.setMinimumDuration(0)
 
-        except Exception as e:
-            QMessageBox.critical(self, "Eroare", f"Extractia a esuat: {e}")
+        processed_count = 0
+        
+        for zip_path in valid_zips:
+            if self.pd.wasCanceled():
+                break
+            
+            self.pd.setLabelText(f"Se procesează: {zip_path.name}")
+            dest_dir = current_dir / zip_path.stem
+            
+            # 3. Verificare Suprascriere per arhivă
+            if dest_dir.exists():
+                msg_box = QMessageBox(self)
+                msg_box.setWindowTitle("Folder existent")
+                msg_box.setText(f"Folderul '{dest_dir.name}' există deja.")
+                msg_box.setInformativeText("Cum doriți să procedați?")
+                
+                btn_replace = msg_box.addButton("Înlocuiește", QMessageBox.ButtonRole.DestructiveRole)
+                btn_merge = msg_box.addButton("Fuzionează", QMessageBox.ButtonRole.AcceptRole)
+                btn_skip = msg_box.addButton("Sari peste", QMessageBox.ButtonRole.RejectRole)
+                
+                msg_box.exec()
+                clicked = msg_box.clickedButton()
+
+                if clicked == btn_skip:
+                    processed_count += 1
+                    self.pd.setValue(processed_count)
+                    continue
+                elif clicked == btn_replace:
+                    try:
+                        shutil.rmtree(dest_dir)
+                    except Exception as e:
+                        print(f"Eroare la ștergere: {e}")
+                # Dacă e merge, continuăm pur și simplu
+
+            # 4. Extracția efectivă
+            try:
+                dest_dir.mkdir(exist_ok=True)
+                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                    zip_ref.extractall(dest_dir)
+                processed_count += 1
+                self.pd.setValue(processed_count)
+            except Exception as e:
+                QMessageBox.critical(self, "Eroare", f"Eșec la {zip_path.name}: {e}")
+
+        self.RefreshPanels()
+        
+        if SHOW_EXTRA_MESSAGES and not self.pd.wasCanceled():
+            QMessageBox.information(self, "Finalizat", f"Au fost procesate {processed_count} arhive.")
+        
     def ZipPath(self):
-        active_tree, prefix = self.getActivePanel()
-        selected_item = active_tree.currentItem()
-
-        if not selected_item:
-            QMessageBox.warning(self, "Atentie", "Selectati un element pentru arhivare.")
-            return
-
-        path_str = selected_item.data(0, QtCore.Qt.ItemDataRole.UserRole)
-        source_path = Path(path_str)
-    
-        # Numele viitoarei arhive (ex: document.txt -> document.zip)
-        zip_name = source_path.parent / (source_path.stem + ".zip")
-
-        try:
-            if source_path.is_dir():
-                # Pentru foldere, shutil.make_archive este cel mai simplu
-                # Acesta creeaza arhiva si returneaza calea
-                shutil.make_archive(str(source_path), 'zip', source_path.parent, source_path.name)
-            else:
-                # Pentru un singur fisier, folosim zipfile
-                with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                    zipf.write(source_path, source_path.name)
+            active_tree, prefix = self.getActivePanel()
+            selected_items = active_tree.selectedItems()
         
-            print(f"Arhiva creata: {zip_name}")
+            # 1. Filtrare elemente selectate (excludem "..")
+            valid_items = [item for item in selected_items if item.text(0) != ".."]
         
-            # Refresh la panelul curent pentru a vedea noul fisier .zip
-            current_path = getattr(self, f'currentPath{prefix}')
-            self.setupTree(active_tree, current_path)
-        
-            if SHOW_EXTRA_MESSAGES:
-                QMessageBox.information(self, "Succes", f"Arhiva a fost creata:\n{zip_name.name}")
+            if not valid_items:
+                QMessageBox.warning(self, "Atenție", "Selectați cel puțin un element pentru arhivare.")
+                return
 
-        except Exception as e:
-            QMessageBox.critical(self, "Eroare", f"Arhivarea a esuat: {e}")
+            # Preluăm căile complete ale tuturor elementelor selectate
+            sources = [Path(item.data(0, Qt.ItemDataRole.UserRole)) for item in valid_items]
+            current_dir = getattr(self, f'currentPath{prefix}')
+
+            # 2. Fereastră pentru a numi ZIP-ul
+            # Sugerăm numele primului element selectat + ".zip"
+            default_name = sources[0].stem + ".zip"
+            zip_name, ok = QInputDialog.getText(self, 'Creare Arhivă', 'Numele arhivei (ex: documente.zip):', 
+                                                QLineEdit.EchoMode.Normal, default_name)
+        
+            if not ok or not zip_name:
+                return
+
+            # Asigurăm extensia .zip
+            if not zip_name.lower().endswith('.zip'):
+                zip_name += ".zip"
+
+            full_zip_path = current_dir / zip_name
+
+            # 3. Verificare dacă arhiva există deja
+            if full_zip_path.exists():
+                reply = QMessageBox.question(self, "Confirmare înlocuire", 
+                                            f"Arhiva '{zip_name}' există deja. Doriți să o înlocuiți?",
+                                            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+                if reply == QMessageBox.StandardButton.No:
+                    return
+                else:
+                    try:
+                        os.remove(full_zip_path)
+                    except Exception as e:
+                        QMessageBox.critical(self, "Eroare", f"Nu s-a putut șterge arhiva veche: {e}")
+                        return
+
+            # 4. Lansarea procesului de arhivare (folosind un worker logic similar cu cel de Copy/Cut)
+            # Notă: Am adaptat logica pentru a folosi un Dialog de progres
+            self.pd = QtWidgets.QProgressDialog(f"Se creează arhiva {zip_name}...", "Anulează", 0, len(sources), self)
+            self.pd.setWindowTitle("Arhivare în curs")
+            self.pd.setWindowModality(QtCore.Qt.WindowModality.WindowModal)
+
+            # Definim o funcție locală pentru procesul de arhivare (pentru a nu modifica masiv CommonImports)
+            # sau putem adăuga 'Zip' ca operațiune în FileOperationWorker. 
+            # Iată varianta rapidă directă în funcție, dar recomandat e prin Worker dacă arhiva e mare:
+        
+            try:
+                with zipfile.ZipFile(full_zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                    for i, src in enumerate(sources):
+                        if self.pd.wasCanceled():
+                            break
+                    
+                        self.pd.setValue(i)
+                        self.pd.setLabelText(f"Se adaugă: {src.name}")
+                    
+                        if src.is_dir():
+                            # Adăugare recursivă folder
+                            for file in src.rglob('*'):
+                                zipf.write(file, file.relative_to(src.parent))
+                        else:
+                            # Adăugare fișier individual
+                            zipf.write(src, src.name)
+            
+                self.pd.setValue(len(sources))
+                self.RefreshPanels()
+            
+                if SHOW_EXTRA_MESSAGES:
+                    QMessageBox.information(self, "Succes", f"Arhiva '{zip_name}' a fost creată cu succes.")
+                
+            except Exception as e:
+                if full_zip_path.exists(): os.remove(full_zip_path) # Ștergem arhiva coruptă dacă a eșuat
+                QMessageBox.critical(self, "Eroare", f"Arhivarea a eșuat: {e}")
 
     def ShowProperties(self):
         active_tree, prefix = self.getActivePanel()
