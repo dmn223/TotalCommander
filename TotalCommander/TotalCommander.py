@@ -112,12 +112,15 @@ class MyApp(QDialog):
         self.setWindowTitle("My Commander")
         global SHOW_EXTRA_MESSAGES
         
+        self.all_buttons = self.findChildren(QtWidgets.QAbstractButton)
         self.all_panels = [self.LeftTree, self.RightTree, self.LeftPanelTree, self.RightPanelTree]
         self.setWindowState(QtCore.Qt.WindowState.WindowMaximized)
         self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowType.WindowMinimizeButtonHint | QtCore.Qt.WindowType.WindowMaximizeButtonHint) # creaza butonul de full screen
         self.buttons = self.findChildren(QPushButton)
         for btn in self.buttons:
             btn.clicked.connect(self.shortCutButton)
+            btn.setAutoDefault(False)
+            btn.setDefault(False)
 
         #Initializare drag and drop 
 
@@ -441,6 +444,10 @@ class MyApp(QDialog):
                 self.RightPanelTree.scrollTo(right_idx, QtWidgets.QAbstractItemView.ScrollHint.PositionAtCenter)
                 self.RightPanelTree.expand(right_idx)
 
+    def ClearFocus(self):
+        for btn in self.all_buttons:
+            btn.clearFocus()
+
     def ConfigWidgets(self): 
 
         self.LeftTree.installEventFilter(self)
@@ -477,8 +484,11 @@ class MyApp(QDialog):
 
         self.RefreshPanels()
 
-        self.BackButton.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
-        self.NextButton.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+        self.LeftTree.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
+        self.RightTree.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
+
+        #self.BackButton.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+        #self.NextButton.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
 
         self.BackButton.clicked.connect(self.GoBack)
         self.NextButton.clicked.connect(self.GoNext)
@@ -541,6 +551,8 @@ class MyApp(QDialog):
 
         # Detectare focus 
         if event.type() == QtCore.QEvent.Type.FocusIn: #pentru tree uri
+            # Clear focus pentru butoane ca Enter sa functioneze in paneluri
+            self.ClearFocus()
             if source == self.LeftTree:
                 self.panel_activated = 'Left'
                 self.style_active_panel(self.LeftTree)
@@ -554,9 +566,30 @@ class MyApp(QDialog):
                 self.panel_activated = 'RightPanel'
                 self.style_active_panel(self.RightPanelTree)
 
+        if event.type() == QtCore.QEvent.Type.KeyPress:
+            if event.key() in [Qt.Key.Key_Return, Qt.Key.Key_Enter]:
+                # Verificăm sursa și trimitem widget-ul manual
+                if source is self.LeftTree or source is self.LeftTree.viewport():
+                    item = self.LeftTree.currentItem()
+                    if item:
+                        self.OpenItem(item, 0, manual_widget=self.LeftTree)
+                    return True
+                elif source is self.RightTree or source is self.RightTree.viewport():
+                    item = self.RightTree.currentItem()
+                    if item:
+                        self.OpenItem(item, 0, manual_widget=self.RightTree)
+                    return True
+
+            # Backspace - mergi inapoi
+            if event.key() == Qt.Key.Key_Backspace:
+                if source is self.LeftTree or source is self.LeftTree.viewport():
+                    self.GoBack()
+                elif source is self.RightTree or source is self.RightTree.viewport():
+                    self.GoBack()
+
         if event.type() == QtCore.QEvent.Type.MouseButtonPress:
             if source in [self.LeftTree, self.LeftTree.viewport(), self.RightTree, self.RightTree.viewport(), self.LeftPanelTree, self.LeftPanelTree.viewport(), self.RightPanelTree, self.RightPanelTree.viewport()]:
-            
+                self.ClearFocus()
                 if source in [self.LeftTree, self.LeftTree.viewport()]:
                     self.panel_activated = 'Left'
                     self.style_active_panel(self.LeftTree)
@@ -570,6 +603,13 @@ class MyApp(QDialog):
                     self.panel_activated = 'RightPanel'
                     self.style_active_panel(self.RightPanelTree)
 
+                actual_tree = source
+                if hasattr(source, 'parent') and isinstance(source.parent(), QTreeWidget):
+                    actual_tree = source.parent()
+                # 3. Explicitly tell this tree to grab the keyboard focus
+                # This ensures "Enter" goes to the tree, not the Back button.
+                actual_tree.setFocus(Qt.FocusReason.MouseFocusReason)
+
                 # pentru mouse
                 if event.button() == Qt.MouseButton.XButton1:
                     self.GoBack()
@@ -577,6 +617,7 @@ class MyApp(QDialog):
                 elif event.button() == Qt.MouseButton.XButton2:
                     self.GoNext()
                     return True
+
         return super().eventFilter(source, event) # se termina de verificat eventul, si se intra in functia lui pentru a continua exectutia
     
     def style_active_panel(self, active_tree=None):
@@ -604,6 +645,10 @@ class MyApp(QDialog):
                 border = "#0078D7" if is_active else "#ABABAB"
 
             width = "2px" if is_active else "1px"
+            #if is_active:
+            #    tree.clearFocus()
+            #else:
+            #    tree.setFocus()
         
             tree.setStyleSheet(f"QTreeWidget, QTreeView {{ background-color: {bg}; color: {text}; border: {width} solid {border}; }}")
 
@@ -670,6 +715,7 @@ class MyApp(QDialog):
         palette.setColor(QtGui.QPalette.ColorRole.Text, QtCore.Qt.GlobalColor.white)
         palette.setColor(QtGui.QPalette.ColorRole.Button, QtGui.QColor(45, 45, 45))
         palette.setColor(QtGui.QPalette.ColorRole.ButtonText, QtCore.Qt.GlobalColor.white)
+        palette.setColor(QtGui.QPalette.ColorRole.PlaceholderText, QtGui.QColor(180, 180, 180))
         QApplication.setPalette(palette)
 
         self.setStyleSheet("""
@@ -694,52 +740,46 @@ class MyApp(QDialog):
         self.style_active_panel()
 
     def apply_light_theme(self):
-        self.is_dark = False
-        QApplication.setPalette(QApplication.style().standardPalette())
+            self.is_dark = False
+        
+            # 1. Configurăm Paleta de culori (exact ca în Dark Mode, dar cu culori de lumină)
+            palette = QtGui.QPalette()
+            # Fundalul ferestrei și textul
+            palette.setColor(QtGui.QPalette.ColorRole.Window, QtGui.QColor(240, 240, 240))
+            palette.setColor(QtGui.QPalette.ColorRole.WindowText, QtCore.Qt.GlobalColor.black)
+            # Fundalul listelor (TreeWidget) și textul din ele
+            palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor(255, 255, 255))
+            palette.setColor(QtGui.QPalette.ColorRole.Text, QtCore.Qt.GlobalColor.black)
+            # Butoanele și textul de pe ele
+            palette.setColor(QtGui.QPalette.ColorRole.Button, QtGui.QColor(225, 225, 225))
+            palette.setColor(QtGui.QPalette.ColorRole.ButtonText, QtCore.Qt.GlobalColor.black)
+            # Highlight (albastru standard Windows)
+            palette.setColor(QtGui.QPalette.ColorRole.Highlight, QtGui.QColor(0, 120, 215))
+            palette.setColor(QtGui.QPalette.ColorRole.HighlightedText, QtCore.Qt.GlobalColor.white)
+        
+            QApplication.setPalette(palette)
 
-        # Adăugăm regulile pentru QTreeWidget (Selecție activă vs inactivă)
-        self.setStyleSheet("""
-            QDialog, QWidget { 
-                background-color: #f0f0f0; 
-                color: black; 
-            }
-            QPushButton { 
-                background-color: #e1e1e1; 
-                color: black; 
-                border: 1px solid #adadad; 
-                padding: 6px; 
-                border-radius: 2px;
-            }
-            QPushButton:hover { 
-                background-color: #e5f1fb; 
-                border: 1px solid #0078d7; 
-            }
-            QLineEdit { 
-                background-color: white; 
-                color: black; 
-                border: 1px solid #adadad; 
-            }
-            QMenuBar::item:selected { background-color: #e5f1fb; color: black; }
-            QMenu::item:selected { background-color: #0078D7; color: white; }
-        
-            /* Stiluri pentru arbori (Total Commander style) */
-            QTreeWidget { outline: 0; }
-        
-            /* Când panoul ARE focus (Albastru standard) */
+            # 2. CSS-ul minim pentru comportamentul specific de selecție (Total Commander style)
+            self.setStyleSheet("""
+            /* Când panoul ARE focus: Fundal albastru, text alb */
             QTreeWidget::item:selected:active, QTreeView::item:selected:active {
-            background-color: #0078D7;
-            color: white;
-        }
+                background-color: #0078D7;
+                color: white;
+            }
 
-        QTreeWidget::item:selected:!active, QTreeView::item:selected:!active {
-            background-color: transparent;
-            color: red; /* Roșu pur pentru Light Mode */
-            font-weight: bold;
-        }
-
-        QTreeView, QTreeWidget { outline: 0; }
-    """)
-        self.style_active_panel()
+            /* Când panoul NU ARE focus: Text ROȘU pur, fără fundal colorat */
+            QTreeWidget::item:selected:!active, QTreeView::item:selected:!active {
+                background-color: transparent;
+                color: red; 
+                font-weight: bold;
+            }
+        
+            /* Elimină chenarul punctat de focus inestetic */
+            QTreeView, QTreeWidget { outline: 0; }
+        """)
+        
+            # 3. Aplicăm bordurile de panel activ/inactiv
+            self.style_active_panel()
 
     def auto_detect_theme(self):
         try:
@@ -1113,10 +1153,13 @@ class MyApp(QDialog):
         
         if hasattr(self, 'RightLabel') and self.currentPathRight:
             self.update_disk_info(self.currentPathRight, self.RightLabel)
-    def OpenItem(self, item, column):
-        sender_widget = self.sender()
-        selected_item = item
 
+    def OpenItem(self, item, column, manual_widget=None):
+        # Dacă manual_widget este trimis (din eventFilter), îl folosim. 
+        # Altfel, folosim self.sender() (pentru double-click).
+        sender_widget = manual_widget if manual_widget else self.sender()
+
+        selected_item = item
         if not selected_item:
             return
 
@@ -1130,8 +1173,7 @@ class MyApp(QDialog):
 
         if item_ext == "DIR":
             if selected_path.is_dir():
-                
-                if sender_widget == self.LeftTree:
+                if sender_widget in  [self.LeftTree, self.LeftTree.viewport()]:
                     self.PathHistoryBackLeft.append(self.currentPathLeft)
                     self.PathHistoryNextLeft = []
                     self.currentPathLeft = selected_path

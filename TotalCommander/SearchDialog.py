@@ -1,20 +1,20 @@
 ﻿from CommonImports import *
 
 class SearchWorker(QThread):
-    # Signals to send data back to the UI safely
     match_found = pyqtSignal(str)
-    status_update = pyqtSignal(str) # New signal for the "Live" path
+    status_update = pyqtSignal(str)
     finished = pyqtSignal()
 
-    def __init__(self, start_path, query, match_case, max_depth, filters, size_limit, size_mode):
+    def __init__(self, start_path, query, match_case, max_depth, filters, size_limit, size_mode, extensions):
         super().__init__()
         self.start_path = start_path
         self.query = query
         self.match_case = match_case
         self.max_depth = max_depth
-        self.filters = filters # (both, files_only, folders_only)
-        self.size_limit = size_limit # Value in MB
-        self.size_mode = size_mode   # "Mai mare de", "Mai mic de", "Oricât"
+        self.filters = filters 
+        self.size_limit = size_limit 
+        self.size_mode = size_mode   
+        self.extensions = extensions # Listă de extensii (ex: ['exe', 'zip'])
         self._is_running = True
 
     def run(self):
@@ -28,7 +28,6 @@ class SearchWorker(QThread):
         if current_depth > self.max_depth or not self._is_running:
             return
 
-        # Emit the current directory we are scanning
         self.status_update.emit(f"Se cauta in: {str(path)}")
 
         try:
@@ -39,12 +38,19 @@ class SearchWorker(QThread):
                 search_q = self.query if self.match_case else self.query.lower()
 
                 if search_q in name:
-                    # 1. Type Filter
+                    # 1. Filtru de Tip (Fisier/Folder)
                     type_ok = self.filters['both'] or \
                              (self.filters['files'] and entry.is_file()) or \
                              (self.filters['folders'] and entry.is_dir())
                     
-                    # 2. Size Filter (only applies to files)
+                    # 2. Filtru de Extensie (Nou!)
+                    ext_ok = True
+                    if self.extensions and entry.is_file():
+                        # Extragem extensia fără punct și o comparăm
+                        file_ext = entry.suffix.lower().lstrip('.')
+                        ext_ok = file_ext in self.extensions
+
+                    # 3. Filtru de Mărime
                     size_ok = True
                     if entry.is_file() and self.size_limit is not None:
                         file_mb = entry.stat().st_size / (1024 * 1024)
@@ -53,7 +59,7 @@ class SearchWorker(QThread):
                         elif self.size_mode == "Mai mic de":
                             size_ok = file_mb < self.size_limit
 
-                    if type_ok and size_ok:
+                    if type_ok and ext_ok and size_ok:
                         self.match_found.emit(str(entry))
 
                 if entry.is_dir():
@@ -112,6 +118,12 @@ class SearchDialog(QDialog):
         self.folders_only = QtWidgets.QRadioButton("Doar Foldere")
         self.both_types = QtWidgets.QRadioButton("Ambele")
         self.both_types.setChecked(True)
+
+        # Adăugăm câmpul pentru extensii
+        layout.addWidget(QLabel("Extensii valide (ex: exe, zip, rar) - lasă gol pentru toate:"))
+        self.ext_input = QLineEdit()
+        self.ext_input.setPlaceholderText("Introduceți extensiile separate prin virgulă...")
+        layout.addWidget(self.ext_input)
         
         self.depth_spin = QSpinBox()
         self.depth_spin.setRange(1, 100)
@@ -190,14 +202,23 @@ class SearchDialog(QDialog):
         size_val = self.size_spin.value()
         size_mode = self.size_mode_combo.currentText()
 
+        # Procesăm extensiile: tăiem spațiile, transformăm în lowercase și eliminăm punctele
+        raw_exts = self.ext_input.text()
+        if raw_exts.strip():
+            valid_extensions = [x.strip().lower().lstrip('.') for x in raw_exts.split(',') if x.strip()]
+        else:
+            valid_extensions = []
+
+        # Setup the worker cu noul parametru
         self.worker = SearchWorker(
             Path(self.path_input.text()), 
-            query, 
+            self.search_input.text(), 
             self.case_checkbox.isChecked(), 
             self.depth_spin.value(),
-            filters,
-            size_limit=size_val if size_mode != "Oricât" else None,
-            size_mode=size_mode
+            filters={'both': self.both_types.isChecked(), 'files': self.files_only.isChecked(), 'folders': self.folders_only.isChecked()},
+            size_limit=self.size_spin.value() if self.size_mode_combo.currentText() != "Oricât" else None,
+            size_mode=self.size_mode_combo.currentText(),
+            extensions=valid_extensions # Trimitem lista procesată
         )
 
         # Connect signals
