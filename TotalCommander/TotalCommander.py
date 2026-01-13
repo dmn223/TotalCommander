@@ -635,12 +635,13 @@ class MyApp(QDialog):
                 actual_tree.setFocus(Qt.FocusReason.MouseFocusReason)
 
                 # pentru mouse
-                if event.button() == Qt.MouseButton.XButton1:
-                    self.GoBack()
-                    return True 
-                elif event.button() == Qt.MouseButton.XButton2:
-                    self.GoNext()
-                    return True
+                if source in [self.LeftTree, self.LeftTree.viewport(), self.RightTree, self.RightTree.viewport()]:
+                    if event.button() == Qt.MouseButton.XButton1:
+                        self.GoBack()
+                        return True 
+                    elif event.button() == Qt.MouseButton.XButton2:
+                        self.GoNext()
+                        return True
 
         return super().eventFilter(source, event) # se termina de verificat eventul, si se intra in functia lui pentru a continua exectutia
     
@@ -1259,6 +1260,10 @@ class MyApp(QDialog):
         active_tree, prefix = self.getActivePanel()
         current_path_attr = 'currentPath' + prefix
         
+        # Nu efectua pe Treepaneluri!
+        if prefix not in ["Left", "Right"]:
+            return
+
         history_back = getattr(self, f'PathHistoryBack{prefix}')
         history_next = getattr(self, f'PathHistoryNext{prefix}')
         
@@ -1276,9 +1281,14 @@ class MyApp(QDialog):
         else:
             print("Nu exista istoric anterior.")
         self.refresh_memory_labels()
+
     def GoNext(self):
         active_tree, prefix = self.getActivePanel()
         current_path_attr = 'currentPath' + prefix
+                
+        # Nu efectua pe Treepaneluri!
+        if prefix not in ["Left", "Right"]:
+            return
         
         history_back = getattr(self, f'PathHistoryBack{prefix}')
         history_next = getattr(self, f'PathHistoryNext{prefix}')
