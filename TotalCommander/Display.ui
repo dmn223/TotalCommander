@@ -38,39 +38,6 @@
       <number>0</number>
      </property>
      <item>
-      <widget class="QPushButton" name="NextButton">
-       <property name="maximumSize">
-        <size>
-         <width>50</width>
-         <height>50</height>
-        </size>
-       </property>
-       <property name="font">
-        <font>
-         <family>Microsoft Sans Serif</family>
-         <pointsize>10</pointsize>
-         <bold>false</bold>
-        </font>
-       </property>
-       <property name="toolTip">
-        <string>Next</string>
-       </property>
-       <property name="text">
-        <string/>
-       </property>
-       <property name="icon">
-        <iconset>
-         <normaloff>icons/right-arrow.png</normaloff>icons/right-arrow.png</iconset>
-       </property>
-       <property name="iconSize">
-        <size>
-         <width>18</width>
-         <height>18</height>
-        </size>
-       </property>
-      </widget>
-     </item>
-     <item>
       <widget class="QPushButton" name="BackButton">
        <property name="maximumSize">
         <size>
@@ -103,6 +70,39 @@
        <property name="icon">
         <iconset>
          <normaloff>icons/left-arrow.png</normaloff>icons/left-arrow.png</iconset>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>18</width>
+         <height>18</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="NextButton">
+       <property name="maximumSize">
+        <size>
+         <width>50</width>
+         <height>50</height>
+        </size>
+       </property>
+       <property name="font">
+        <font>
+         <family>Microsoft Sans Serif</family>
+         <pointsize>10</pointsize>
+         <bold>false</bold>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Next</string>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset>
+         <normaloff>icons/right-arrow.png</normaloff>icons/right-arrow.png</iconset>
        </property>
        <property name="iconSize">
         <size>

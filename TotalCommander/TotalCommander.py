@@ -672,22 +672,32 @@ class MyApp(QDialog):
         palette.setColor(QtGui.QPalette.ColorRole.ButtonText, QtCore.Qt.GlobalColor.white)
         QApplication.setPalette(palette)
 
-        # Fix Buttons (Blue background on hover)
         self.setStyleSheet("""
-            QPushButton { background-color: #3D3D3D; color: white; border: 1px solid #555; padding: 5px; }
-            QPushButton:hover { background-color: #0078D7; color: white; }
-            QLineEdit { background-color: #1E1E1E; color: white; border: 1px solid #555; }
-            QMenuBar::item:selected { background-color: #0078D7; color: white; }
-            QMenu::item:selected { background-color: #0078D7; color: white; }
-        """)
+        /* ... restul butoanelor ... */
+
+        /* Când panoul ARE focus (Highlight albastru ca în imaginea ta) */
+        QTreeWidget::item:selected:active, QTreeView::item:selected:active {
+            background-color: #0078D7;
+            color: white;
+        }
+
+        /* Când panoul NU ARE focus (Text ROȘU, fără fundal alb/albastru) */
+        QTreeWidget::item:selected:!active, QTreeView::item:selected:!active {
+            background-color: transparent;
+            color: #FF5555; /* Roșu deschis pentru Dark Mode */
+            font-weight: bold;
+        }
+        
+        /* Elimină chenarul punctat de focus */
+        QTreeView, QTreeWidget { outline: 0; }
+    """)
         self.style_active_panel()
 
     def apply_light_theme(self):
         self.is_dark = False
-    
         QApplication.setPalette(QApplication.style().standardPalette())
 
-        # 2. 
+        # Adăugăm regulile pentru QTreeWidget (Selecție activă vs inactivă)
         self.setStyleSheet("""
             QDialog, QWidget { 
                 background-color: #f0f0f0; 
@@ -711,9 +721,24 @@ class MyApp(QDialog):
             }
             QMenuBar::item:selected { background-color: #e5f1fb; color: black; }
             QMenu::item:selected { background-color: #0078D7; color: white; }
-        """)
-    
-        # 3. IMMEDIATELY update the interior panels (The Trees)
+        
+            /* Stiluri pentru arbori (Total Commander style) */
+            QTreeWidget { outline: 0; }
+        
+            /* Când panoul ARE focus (Albastru standard) */
+            QTreeWidget::item:selected:active, QTreeView::item:selected:active {
+            background-color: #0078D7;
+            color: white;
+        }
+
+        QTreeWidget::item:selected:!active, QTreeView::item:selected:!active {
+            background-color: transparent;
+            color: red; /* Roșu pur pentru Light Mode */
+            font-weight: bold;
+        }
+
+        QTreeView, QTreeWidget { outline: 0; }
+    """)
         self.style_active_panel()
 
     def auto_detect_theme(self):
@@ -1340,7 +1365,10 @@ class MyApp(QDialog):
 
         # Sincronizăm vizual arborele cu directoarele de pornire
         self.syncSidePanelsToPaths()
-
+        self.LeftPanelTree.clearSelection()
+        self.RightPanelTree.clearSelection()
+        self.LeftPanelTree.setCurrentIndex(QtCore.QModelIndex())
+        self.RightPanelTree.setCurrentIndex(QtCore.QModelIndex())
         self.LeftPanelTree.clicked.connect(self.LeftPanelClick)
         self.RightPanelTree.clicked.connect(self.RightPanelClick)
 
